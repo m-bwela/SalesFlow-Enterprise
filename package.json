@@ -1,10 +1,10 @@
 {
-  "name": "sead",
+  "name": "salesflow",
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@10.15.0",
   "scripts": {
-    "dev": "pnpm --parallel --filter @sead/api --filter @sead/web dev",
+    "dev": "pnpm --parallel --filter @salesflow/api --filter @salesflow/web dev",
     "build": "pnpm --recursive build",
     "test": "pnpm --recursive test",
     "lint": "pnpm --recursive lint",
