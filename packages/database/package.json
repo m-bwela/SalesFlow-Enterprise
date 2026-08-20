@@ -1,6 +1,5 @@
-cat > package.json << 'EOF'
 {
-  "name": "@sead/database",
+  "name": "@salesflow/database",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -12,4 +11,3 @@ cat > package.json << 'EOF'
     "typecheck": "tsc --noEmit"
   }
 }
-EOF
