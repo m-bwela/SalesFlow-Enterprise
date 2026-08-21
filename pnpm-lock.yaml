@@ -47,6 +47,9 @@ importers:
       '@prisma/client':
         specifier: ^7.9.1
         version: 7.9.1(prisma@7.9.1(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@7.0.2))(typescript@7.0.2)
+      dotenv:
+        specifier: ^17.4.2
+        version: 17.4.2
     devDependencies:
       prisma:
         specifier: ^7.9.1
