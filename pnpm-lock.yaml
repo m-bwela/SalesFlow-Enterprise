@@ -10,6 +10,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@salesflow/database':
+        specifier: workspace:*
+        version: link:../../packages/database
       cors:
         specifier: ^2.8.6
         version: 2.8.6
