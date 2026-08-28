@@ -4,6 +4,7 @@ import helmet from "helmet";
 import { healthRouter } from "./routes/health.js";
 import { errorhandler } from "./middleware/error-handler.js";
 import { requestId } from "./middleware/request-id.js";
+import { authRouter } from "./modules/auth/auth.routes.js";
 import { notFound } from "./middleware/not-found.js";
 
 export const app = express();
@@ -15,5 +16,6 @@ app.use(express.json());
 app.use(requestId);
 
 app.use("/health", healthRouter);
+app.use("/api/v1/auth", authRouter);
 app.use(notFound);
 app.use(errorhandler);
