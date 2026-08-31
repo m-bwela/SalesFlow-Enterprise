@@ -2,6 +2,8 @@ import type { Request, Response, NextFunction } from "express";
 
 import { registerSchema } from "./auth.schemas.js";
 import { authService } from "./auth.service.js";
+import { sessionService } from "./session.service.js";
+import { SESSION_COOKIE_NAME, sessionCookieOptions } from "./auth.cookies.js";
 
 export async function register(
     req: Request,
@@ -12,9 +14,17 @@ export async function register(
         const input = registerSchema.parse(req.body);
 
         const user = await authService.register(input);
+        const { token, session } = await sessionService.create(user.id);
+
+        res.cookie(SESSION_COOKIE_NAME, token, {
+            ...sessionCookieOptions,
+            expires: session.expiresAt,
+        });
+
         res.status(201).json({
             user,
         });
+        
     } catch (error) {
         next(error);
     }
