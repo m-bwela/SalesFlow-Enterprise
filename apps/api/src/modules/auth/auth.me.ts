@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 
-export default function getCurrentUser(_req: Request, res: Response) {
+export function getCurrentUser(_req: Request, res: Response) {
     const user = res.locals.user;
 
     if (!user) {
