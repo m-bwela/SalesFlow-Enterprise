@@ -1,9 +1,12 @@
 import argon2 from "argon2";
 
 import { prisma } from "@salesflow/database";
-import type { RegisterInput } from "./auth.schemas.js";
+import type { RegisterInput, LoginInput } from "./auth.schemas.js";
 
 import { ConflictError } from "../../errors/conflict-error.js";
+import { AppError } from "../../errors/app-error.js";
+
+import { sessionService } from "./session.service.js";
 
 export class AuthService {
     async register(input: RegisterInput) {
@@ -40,6 +43,47 @@ export class AuthService {
         });
 
         return user;
+    }
+
+    async login(input: LoginInput) {
+        const email = input.email.trim().toLowerCase();
+        const user = await prisma.user.findUnique({
+            where: {
+                email,
+            },
+        });
+
+        if (!user || !user.passwordHash) {
+            throw new AppError("INVALID_CREDENTIALS", 401, "Invalid email or password.");
+        }
+
+        const isPasswordValid = await argon2.verify(
+            user.passwordHash,
+            input.password,
+        );
+
+        if (!isPasswordValid) {
+            throw new AppError("INVALID_CREDENTIALS", 401, "Invalid email or password.");
+        }
+
+        if(user.status !== "ACTIVE") {
+            throw new AppError("ACCOUNT_UNAVAILABLE", 403, "This account is not available.");
+        }
+
+        const session = await sessionService.create(user.id);
+
+        return {
+            user: {
+                id: user.id,
+                email: user.email,
+                displayName: user.displayName,
+                status: user.status,
+                emailVerifiedAt: user.emailVerifiedAt,
+                createdAt: user.createdAt,
+                updatedAt: user.updatedAt,
+            },
+            session,
+        };
     }
 }
 

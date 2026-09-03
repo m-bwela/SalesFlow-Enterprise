@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 
 import { registerSchema } from "./auth.schemas.js";
 import { authService } from "./auth.service.js";
+import { loginSchema } from "./auth.schemas.js";
 import { sessionService } from "./session.service.js";
 import { SESSION_COOKIE_NAME, sessionCookieOptions } from "./auth.cookies.js";
 
@@ -25,6 +26,30 @@ export async function register(
             user,
         });
         
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function login(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+) {
+    try {
+        const input = loginSchema.parse(req.body);
+
+        const result = await authService.login(input);
+        const { user, session } = result;
+
+        res.cookie(SESSION_COOKIE_NAME, session.token, {
+            ...sessionCookieOptions,
+            expires: result.session.session.expiresAt,
+        });
+
+        res.status(200).json({
+            user,
+        });
     } catch (error) {
         next(error);
     }
