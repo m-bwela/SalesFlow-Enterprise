@@ -26,6 +26,17 @@ export class SessionService {
 
         return { token, session };
     }
+
+    async revoke(sessionId: string) {
+        await prisma.session.update({
+            where: {
+                id: sessionId,
+            },
+            data: {
+                revokedAt: new Date(),
+            },
+        });
+    }
 }
 
 export const sessionService = new SessionService();
