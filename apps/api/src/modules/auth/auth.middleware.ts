@@ -25,8 +25,22 @@ export const requireAuth: RequestHandler = async (req, res, next) => {
             where: {
                 tokenHash,
             },
-            include: {
-                user: true,
+            select: {
+                id: true,
+                userId: true,
+                expiresAt: true,
+                revokedAt: true,
+                user: {
+                    select: {
+                        id: true,
+                        email: true,
+                        displayName: true,
+                        status: true,
+                        emailVerifiedAt: true,
+                        createdAt: true,
+                        updatedAt: true,
+                    },
+                },
             },
         });
 
