@@ -73,84 +73,6 @@ model User {
   @@map("users")
 }
 
-model Organization {
-  id        String             @id @default(uuid()) @db.Uuid
-  name      String
-  slug      String             @unique
-  status    OrganizationStatus @default(ACTIVE)
-  createdAt DateTime           @default(now())
-  updatedAt DateTime           @updatedAt
-
-  memberships Membership[]
-  roles       Role[]
-  documents   Document[]
-  auditLogs   AuditLog[]
-
-  @@index([status])
-  @@map("organizations")
-}
-
-model Membership {
-  id             String           @id @default(uuid()) @db.Uuid
-  organizationId String           @db.Uuid
-  userId         String           @db.Uuid
-  roleId         String           @db.Uuid
-  status         MembershipStatus @default(ACTIVE)
-  joinedAt       DateTime?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role         Role         @relation(fields: [roleId], references: [id], onDelete: Restrict)
-
-  @@unique([organizationId, userId])
-  @@index([userId])
-  @@index([organizationId, status])
-  @@map("memberships")
-}
-
-model Role {
-  id             String   @id @default(uuid()) @db.Uuid
-  organizationId String?  @db.Uuid
-  name           String
-  description    String?
-  isSystem       Boolean  @default(false)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  organization    Organization?    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  memberships     Membership[]
-  rolePermissions RolePermission[]
-
-  @@unique([organizationId, name])
-  @@index([organizationId])
-  @@map("roles")
-}
-
-model Permission {
-  id          String   @id @default(uuid()) @db.Uuid
-  key         String   @unique
-  description String?
-  createdAt   DateTime @default(now())
-
-  rolePermissions RolePermission[]
-
-  @@map("permissions")
-}
-
-model RolePermission {
-  roleId       String @db.Uuid
-  permissionId String @db.Uuid
-
-  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
-
-  @@id([roleId, permissionId])
-  @@index([permissionId])
-  @@map("role_permissions")
-}
-
 model Session {
   id         String    @id @default(uuid()) @db.Uuid
   userId     String    @db.Uuid
@@ -221,8 +143,10 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  regions    Region[]
+  regions     Region[]
   memberships Membership[]
+  documents   Document[]
+  auditLogs   AuditLog[]
 
   @@map("organizations")
 }
@@ -245,16 +169,16 @@ model Region {
 }
 
 model Territory {
-  id             String   @id @default(uuid()) @db.Uuid
-  regionId       String   @db.Uuid
-  name           String
-  code           String   
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id        String   @id @default(uuid()) @db.Uuid
+  regionId  String   @db.Uuid
+  name      String
+  code      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  region        Region @relation(fields: [regionId], references: [id], onDelete: Cascade)
-  distributors  Distributor[]
+  region       Region        @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  distributors Distributor[]
 
   @@unique([regionId, code])
   @@index([regionId])
@@ -262,16 +186,16 @@ model Territory {
 }
 
 model Distributor {
-  id             String   @id @default(uuid()) @db.Uuid
-  territoryId    String   @db.Uuid
-  name           String
-  code           String   
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id          String   @id @default(uuid()) @db.Uuid
+  territoryId String   @db.Uuid
+  name        String
+  code        String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  territory      Territory @relation(fields: [territoryId], references: [id], onDelete: Restrict)
-  warehouses     Warehouse[]
+  territory  Territory   @relation(fields: [territoryId], references: [id], onDelete: Restrict)
+  warehouses Warehouse[]
 
   @@unique([territoryId, code])
   @@index([territoryId])
@@ -279,15 +203,15 @@ model Distributor {
 }
 
 model Warehouse {
-  id             String   @id @default(uuid()) @db.Uuid
-  distributorId  String   @db.Uuid
-  name           String
-  code           String   
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id            String   @id @default(uuid()) @db.Uuid
+  distributorId String   @db.Uuid
+  name          String
+  code          String
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  distributor    Distributor @relation(fields: [distributorId], references: [id], onDelete: Restrict)
+  distributor Distributor @relation(fields: [distributorId], references: [id], onDelete: Restrict)
 
   @@unique([distributorId, code])
   @@index([distributorId])
@@ -295,28 +219,28 @@ model Warehouse {
 }
 
 model Role {
-  id        String   @id @default(uuid()) @db.Uuid
-  code      RoleCode @unique
-  name      String
+  id          String   @id @default(uuid()) @db.Uuid
+  code        RoleCode @unique
+  name        String
   description String?
-  isSystem  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isSystem    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  memberships MembershipRole[]
+  memberships     MembershipRole[]
   rolePermissions RolePermission[]
 
   @@map("roles")
 }
 
 model Permission {
-  id        String   @id @default(uuid()) @db.Uuid
-  code      String @unique
-  name      String
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique
+  name        String
   description String?
-  isSystem  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isSystem    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   rolePermissions RolePermission[]
 
@@ -324,11 +248,11 @@ model Permission {
 }
 
 model RolePermission {
-  roleId      String   @db.Uuid
-  permissionId String   @db.Uuid
+  roleId       String @db.Uuid
+  permissionId String @db.Uuid
 
-  role        Role      @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  permission  Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
   @@id([roleId, permissionId])
   @@index([permissionId])
@@ -336,17 +260,17 @@ model RolePermission {
 }
 
 model Membership {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @db.Uuid
-  organizationId  String   @db.Uuid
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @db.Uuid
+  organizationId String   @db.Uuid
   isActive       Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  roles     MembershipRole[]
+  roles MembershipRole[]
 
   @@unique([userId, organizationId])
   @@index([organizationId])
@@ -355,22 +279,22 @@ model Membership {
 }
 
 model MembershipRole {
-  id        String   @id @default(uuid()) @db.Uuid
-  membershipId String   @db.Uuid
-  roleId    String   @db.Uuid
-  scopeType   ScopeType
-  regionId   String?   @db.Uuid
-  territoryId String?   @db.Uuid
-  distributorId  String?   @db.Uuid
+  id            String    @id @default(uuid()) @db.Uuid
+  membershipId  String    @db.Uuid
+  roleId        String    @db.Uuid
+  scopeType     ScopeType
+  regionId      String?   @db.Uuid
+  territoryId   String?   @db.Uuid
+  distributorId String?   @db.Uuid
   warehouseId   String?   @db.Uuid
-  startsAt  DateTime  @default(now())
-  endsAt    DateTime?  
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  startsAt      DateTime  @default(now())
+  endsAt        DateTime?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
-  role      Role       @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Restrict)
 
   @@unique([membershipId, roleId])
   @@index([roleId])
