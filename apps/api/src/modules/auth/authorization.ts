@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { prisma } from '@salesflow/database';
+import { resolveAuthorizationScope } from './scope.js';
 
 export function requirePermission(permissionCode: string) {
     return async (req: Request, res: Response, next: NextFunction) => {
@@ -56,6 +57,7 @@ export function requirePermission(permissionCode: string) {
 
             res.locals.membership = membership;                              
             res.locals.roles = membership.roles;
+            res.locals.authorizationScope = resolveAuthorizationScope(membership.roles);
 
             return next();
         } catch (error) {
