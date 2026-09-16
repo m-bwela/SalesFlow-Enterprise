@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 
+import { resolvePortal } from "./portal.js";
 import { registerSchema } from "./auth.schemas.js";
 import { authService } from "./auth.service.js";
 import { loginSchema } from "./auth.schemas.js";
@@ -53,4 +54,15 @@ export async function login(
     } catch (error) {
         next(error);
     }
+}
+
+export function getPortal(
+    _req: Request,
+    res: Response,
+) {
+    const roles = res.locals.roles ?? [];
+
+    const roleCodes = roles.map((membershipRole: any) => membershipRole.role.code);
+
+    return res.json({ data: resolvePortal(roleCodes) });
 }
