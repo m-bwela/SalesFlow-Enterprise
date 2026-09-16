@@ -17,7 +17,7 @@ authRouter.post("/logout", requireAuth, logout);
 authRouter.get("/me", requireAuth, getCurrentUser);
 authRouter.get(
     "/portal",
-    authenticate,
+    requireAuth,
     requirePermission("dashboard.view"),
     getPortal,
 );
