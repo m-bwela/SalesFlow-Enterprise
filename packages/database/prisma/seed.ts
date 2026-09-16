@@ -1,5 +1,6 @@
 /// <reference types="node" />
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, ScopeType } from '@prisma/client';
+import * as argon2 from "argon2";
 
 const prisma = new PrismaClient();
 
@@ -253,6 +254,171 @@ async function main() {
     }
 
     console.log("Seeding completed successfully.");
+
+
+    // Development organization hierarchy
+
+    const organization = await prisma.organization.upsert({
+        where: {
+            code: "SFE",
+        },
+        update: {
+            name: "SalesFlow Enterprise",
+            isActive: true,
+        },
+        create: {
+            code: "SFE",
+            name: "SalesFlow Enterprise",
+        }
+    });
+
+    const region = await prisma.region.upsert({
+        where: {
+            organizationId_code: {
+                organizationId: organization.id,
+                code: "COAST",
+            }
+        },
+        update: {
+            name: "Coast Region",
+            isActive: true,
+        },
+        create: {
+            organizationId: organization.id,
+            code: "COAST",
+            name: "Coast Region",
+        }
+    });
+
+    const territory = await prisma.territory.upsert({
+        where: {
+            regionId_code: {
+                regionId: region.id,
+                code: "MOMBASA"
+            }
+        },
+        update: {
+            name: "Mombasa Territory",
+            isActive: true,
+        },
+        create: {
+            regionId: region.id,
+            code: "MOMBASA",
+            name: "Mombasa Territory",
+        }
+    });
+
+    const distributor = await prisma.distributor.upsert({
+        where: {
+            territoryId_code: {
+                territoryId: territory.id,
+                code: "MOMBASA-DIST",
+            }
+        },
+        update: {
+            name: "Mombasa Distributor",
+            isActive: true,
+        },
+        create: {
+            territoryId: territory.id,
+            code: "MOMBASA-DIST",
+            name: "Mombasa Distributor",
+        }
+    });
+
+    const warehouse = await prisma.warehouse.upsert({
+        where: {
+            distributorId_code: {
+                distributorId: distributor.id,
+                code: "MOMBASA-WH",
+            }
+        },
+        update: {
+            name: "Mombasa Main Warehouse",
+            isActive: true,
+        },
+        create: {
+            distributorId: distributor.id,
+            code: "MOMBASA-WH",
+            name: "Mombasa Main Warehouse",
+        }
+    });
+
+    console.log("Development organization hierarchy seeded successfully.");
+
+
+    const johnPasswordHash = await argon2.hash("ChangeMe123!",
+        {
+            type: argon2.argon2id,
+        },
+    );
+
+    const john = await prisma.user.upsert({
+        where: {
+            email: "john@salesflow.local",
+        },
+        update: {
+            displayName: "John",
+            status: "ACTIVE",
+        },
+        create: {
+            email: "john@salesflow.local",
+            passwordHash: johnPasswordHash,
+            displayName: "John",
+            status: "ACTIVE",
+        },
+    });
+
+    const johnMembership = await prisma.membership.upsert({
+        where: {
+            userId_organizationId: {
+                userId: john.id,
+                organizationId: organization.id,
+            }
+        },
+        update: {
+            isActive: true,
+        },
+        create: {
+            userId: john.id,
+            organizationId: organization.id,
+            isActive: true,
+        }
+    });
+    
+    const asrRole = await prisma.role.findUnique({
+        where: {
+            code: RoleCode.ASR,
+        },
+    });
+
+    if (!asrRole) {
+        throw new Error("ASR role not found.");
+    }
+
+    const existingJohnRole = await prisma.membershipRole.findFirst({
+        where: {
+            membershipId: johnMembership.id,
+            roleId: asrRole.id,
+            scopeType: ScopeType.DISTRIBUTOR,
+            distributorId: distributor.id,
+            isActive: true,
+        },
+    });
+
+    if (!existingJohnRole) {
+        await prisma.membershipRole.create({
+            data: {
+                membershipId: johnMembership.id,
+                roleId: asrRole.id,
+                scopeType: ScopeType.DISTRIBUTOR,
+                distributorId: distributor.id,
+                isActive: true,
+            },
+        });
+    }
+
+    console.log(`John seeded as ASR for distributor ${distributor.name}.`);
 }
 
 main().catch((e) => {
