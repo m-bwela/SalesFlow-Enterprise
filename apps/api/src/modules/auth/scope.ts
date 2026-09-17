@@ -12,7 +12,7 @@ export interface AuthorizationScope {
     global: boolean;
     regionIds: string[];
     territoryIds: string[];
-    distributorsIds: string[];
+    distributorIds: string[];
     warehouseIds: string[];
 }
 
@@ -23,7 +23,7 @@ export function resolveAuthorizationScope(
         global: false,
         regionIds: [],
         territoryIds: [],
-        distributorsIds: [],
+        distributorIds: [],
         warehouseIds: [],
     };
 
@@ -45,7 +45,7 @@ export function resolveAuthorizationScope(
                 break;
             case ScopeType.DISTRIBUTOR:
                 if (membershipRole.distributorId) {
-                    scope.distributorsIds.push(membershipRole.distributorId);
+                    scope.distributorIds.push(membershipRole.distributorId);
                 }
                 break;
             case ScopeType.WAREHOUSE:
@@ -59,7 +59,7 @@ export function resolveAuthorizationScope(
         ...scope,
         regionIds: [...new Set(scope.regionIds)],
         territoryIds: [...new Set(scope.territoryIds)],
-        distributorsIds: [...new Set(scope.distributorsIds)],
+        distributorIds: [...new Set(scope.distributorIds)],
         warehouseIds: [...new Set(scope.warehouseIds)],
     }
 }
