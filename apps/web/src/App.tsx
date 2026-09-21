@@ -1,7 +1,45 @@
+import type { ReactNode } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { ProtectedRoute } from "./routes/ProtectedRoute";
 import { RoleRoute } from "./routes/RoleRoute";
 import { PortalRedirect } from "./routes/PortalRedirect";
+
+function PageShell({ title, children }: { title: string; children?: ReactNode }) {
+  return (
+    <div style={{ padding: 24 }}>
+      <h1>{title}</h1>
+      {children}
+    </div>
+  );
+}
+
+function LoginPage() {
+  return <PageShell title="Login" />;
+}
+
+function RegisterPage() {
+  return <PageShell title="Register" />;
+}
+
+function AdminDashboard() {
+  return <PageShell title="Admin Dashboard" />;
+}
+
+function RSMDashboard() {
+  return <PageShell title="RSM Dashboard" />;
+}
+
+function TSMDashboard() {
+  return <PageShell title="TSM Dashboard" />;
+}
+
+function MTSRDashboard() {
+  return <PageShell title="MTSR Dashboard" />;
+}
+
+function ASRDashboard() {
+  return <PageShell title="ASR Dashboard" />;
+}
 
 function App() {
   return (

@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   Sidebar as ShadcnSidebar,
   SidebarContent,
@@ -96,6 +96,7 @@ function getPrimaryNavigation(role: RoleCode): NavItem[] {
 
 export function Sidebar() {
   const { auth } = useAuth();
+  const navigate = useNavigate();
   const role = auth?.roles[0]?.code;
   const navigation = role ? getPrimaryNavigation(role) : [];
 
@@ -124,11 +125,9 @@ export function Sidebar() {
 
                 return (
                   <SidebarMenuItem key={item.url}>
-                    <SidebarMenuButton asChild tooltip={item.title}>
-                      <Link to={item.url}>
-                        <Icon />
-                        <span>{item.title}</span>
-                      </Link>
+                    <SidebarMenuButton tooltip={item.title} onClick={() => navigate(item.url)}>
+                      <Icon />
+                      <span>{item.title}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
@@ -143,20 +142,16 @@ export function Sidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Tasks">
-                  <Link to="/tasks">
-                    <ClipboardList />
-                    <span>Tasks</span>
-                  </Link>
+                <SidebarMenuButton tooltip="Tasks" onClick={() => navigate("/tasks")}>
+                  <ClipboardList />
+                  <span>Tasks</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Settings">
-                  <Link to="/settings">
-                    <Settings />
-                    <span>Settings</span>
-                  </Link>
+                <SidebarMenuButton tooltip="Settings" onClick={() => navigate("/settings")}>
+                  <Settings />
+                  <span>Settings</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
