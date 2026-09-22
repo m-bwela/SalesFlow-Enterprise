@@ -1,4 +1,3 @@
-import type { ComponentType } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Sidebar as ShadcnSidebar,
@@ -15,14 +14,14 @@ import {
 } from "../ui/sidebar";
 
 import { useAuth } from "../../context/AuthContext";
-import { adminNavigation } from "../../config/navigation";
+import { getNavigationForRole } from "../../config/navigation";
 
 
 export function Sidebar() {
   const { auth } = useAuth();
   const navigate = useNavigate();
   const role = auth?.roles[0]?.code;
-  const navigation = role === "ADMIN" ? adminNavigation : [];
+  const navigation = role ? getNavigationForRole(role) : [];
 
   return (
     <ShadcnSidebar collapsible="icon">
@@ -39,34 +38,36 @@ export function Sidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-              {navigation.map((group) => (
-                <SidebarGroup key={group.title}>
-                    <SidebarGroupLabel>
-                        {group.title}
-                    </SidebarGroupLabel>
+        {navigation.map((group) => (
+          <SidebarGroup key={group.title}>
+            <SidebarGroupLabel>{group.title}</SidebarGroupLabel>
 
-                    <SidebarGroupContent>
-                        <SidebarMenu>
-                            {group.items.map((item) => (
-                                <SidebarMenuItem key={item.url}>
-                                    <SidebarMenuButton tooltip={item.title} onClick={() => navigate(item.url)}>
-                                            <item.icon />
-                                            <span>{item.title}</span>
-                                    </SidebarMenuButton>  
-                                </SidebarMenuItem>
-                            ))}
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
-              ))}
-              </SidebarContent>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {group.items.map((item) => {
+                  const Icon = item.icon;
 
-            <SidebarFooter>
-             <div className="px-2 py-2 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
-                  {auth?.user.displayName}
-                 <div>&copy; {new Date().getFullYear()} SalesFlow. All rights reserved.</div>
-             </div>
-            </SidebarFooter>
+                  return (
+                    <SidebarMenuItem key={item.url}>
+                      <SidebarMenuButton tooltip={item.title} onClick={() => navigate(item.url)}>
+                        <Icon />
+                        <span>{item.title}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
+      </SidebarContent>
+
+      <SidebarFooter>
+        <div className="px-2 py-2 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
+          {auth?.user.displayName}
+          <div>&copy; {new Date().getFullYear()} SalesFlow. All rights reserved.</div>
+        </div>
+      </SidebarFooter>
 
       <SidebarRail />
     </ShadcnSidebar>
