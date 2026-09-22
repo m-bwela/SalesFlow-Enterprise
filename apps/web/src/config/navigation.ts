@@ -20,7 +20,6 @@ import {
     UserRoundCheck,
     Warehouse,
     Workflow,
-    BarChart2,
 } from "lucide-react";
 import type { RoleCode } from "../types/auth";
 
@@ -53,37 +52,99 @@ export const adminNavigation: NavigationGroup[] = [
     },
 
     {
-        title: "People & Access",
+        title: "Business Intelligence",
         items: [
             {
-                title: "User Management",
-                url: "/admin/users",
+                title: "Sales Dashboard",
+                url: "/admin/sales-dashboard",
+                icon: BarChart3,
+            },
+            {
+                title: "Performance",
+                url: "/admin/performance",
+                icon: Gauge,
+            },
+            {
+                title: "Analytics",
+                url: "/admin/analytics",
+                icon: BarChart3,
+            },
+            {
+                title: "Reports",
+                url: "/admin/reports",
+                icon: FileBarChart,
+            },
+        ],
+    },
+
+    {
+        title: "Field Operations",
+        items: [
+            {
+            title: "ASR Dashboard",
+            url: "/admin/asr-dashboard",
+            icon: UserRoundCheck,
+            },
+            {
+                title: "TSM Dashboard",
+                url: "/admin/tsm-dashboard",
                 icon: Users,
             },
             {
-                title: "Online Users",
-                url: "/admin/online-users",
-                icon: UserRoundCheck,
-            },
-            {
-                title: "User Activity",
-                url: "/admin/user-activity",
+                title: "Route Activity",
+                url: "/admin/routes/activity",
                 icon: Activity,
             },
             {
-                title: "Role Management",
-                url: "/admin/roles",
-                icon: ShieldCheck,
+                title: "Route Effectiveness",
+                url: "/admin/routes/effectiveness",
+                icon: Gauge,
             },
             {
-                title: "ASR Management",
-                url: "/admin/asr-management",
-                icon: UserCog,
+                title: "Routes",
+                url: "/admin/routes",
+                icon: Workflow,
             },
             {
-                title: "User Impersonation",
-                url: "/admin/impersonation",
-                icon: UserRoundCheck,
+                title: "Route Plans",
+                url: "/admin/route-plans",
+                icon: ClipboardCheck,
+            },
+            {
+                title: "Outlets",
+                url: "/admin/outlets",
+                icon: Store,
+            },
+            {
+                title: "Distributors",
+                url: "/admin/distributors",
+                icon: Store,
+            },
+        ],
+    },
+
+    {
+        title: "Modern Trade",
+        items: [
+            {
+                title: "MT Performance",
+                url: "/admin/mordern-trade/performance",
+                icon: BarChart3,
+            },
+            {
+                title: "MT TSM Dashboard",
+                url: "/admin/modern-trade/tsm",
+                icon: Users,
+            },
+            {
+                title: "MT Outlets",
+                url: "/admin/modern-trade/outlets",
+                icon: Store,
+            },
+            {
+                title: "MT Sales",
+                url: "/admin/modern-trade/sales",
+                icon: BarChart3,
             },
         ],
     },
@@ -120,6 +181,42 @@ export const adminNavigation: NavigationGroup[] = [
     },
 
     {
+        title: "People & Access",
+        items: [
+            {
+                title: "User Management",
+                url: "/admin/users",
+                icon: Users,
+            },
+            {
+                title: "Role Management",
+                url: "/admin/roles",
+                icon: ShieldCheck,
+            },
+            {
+                title: "ASR Management",
+                url: "/admin/asr-management",
+                icon: UserCog,
+            },
+            {
+                title: "Online Users",
+                url: "/admin/online-users",
+                icon: UserRoundCheck,
+            },
+            {
+                title: "User Activity",
+                url: "/admin/user-activity",
+                icon: Activity,
+            },
+            {
+                title: "User Impersonation",
+                url: "/admin/impersonation",
+                icon: UserRoundCheck,
+            },
+        ],
+    },
+
+    {
         title: "Master Data",
         items: [
             {
@@ -133,11 +230,6 @@ export const adminNavigation: NavigationGroup[] = [
                 icon: Store,
             },
             {
-                title: "Routes",
-                url: "/admin/routes",
-                icon: Workflow,
-            },
-            {
                 title: "Assests",
                 url: "/admin/assets",
                 icon: Boxes,
@@ -146,22 +238,17 @@ export const adminNavigation: NavigationGroup[] = [
     },
 
     {
-        title: "Sales & Performance",
+        title: "Inventory & Assets",
         items: [
             {
-                title: "Sales Dashboard",
-                url: "/admin/sales",
-                icon: BarChart3,
+                title: "Asset Inventory",
+                url: "/admin/asset-inventory",
+                icon: Boxes,
             },
             {
-                title: "Performance Monitoring",
-                url: "/admin/performance",
-                icon: Gauge,
-            },
-            {
-                title: "Analytics",
-                url: "/admin/analytics",
-                icon: BarChart3,
+                title: "Inventory",
+                url: "/admin/inventory",
+                icon: Warehouse,
             },
         ],
     },
@@ -175,25 +262,9 @@ export const adminNavigation: NavigationGroup[] = [
                 icon:ClipboardCheck,
             },
             {
-                title: "Asset Inventory",
-                url: "/admin/assest-inventory",
-                icon: Boxes,
-            },
-            {
                 title: "Shift Configuration",
                 url: "/admin/shifts",
                 icon: Workflow,
-            },
-        ],
-    },
-
-    {
-        title: "Reports",
-        items: [
-            {
-                title: "Reports",
-                url: "/admin/reports",
-                icon: FileBarChart,
             },
         ],
     },
