@@ -419,6 +419,69 @@ async function main() {
     }
 
     console.log(`John seeded as ASR for distributor ${distributor.name}.`);
+
+
+    const adminPasswordHash = await argon2.hash("AdminChangeMe123!", {
+        type: argon2.argon2id,
+    });
+
+    const adminUser = await prisma.user.upsert({
+        where: {
+            email: "admin@salesflow.local",
+        },
+        update: {
+            displayName: "SalesFlow Admin",
+            passwordHash: adminPasswordHash,
+            status: "ACTIVE",
+        },
+        create: {
+            email: "admin@salesflow.local",
+            displayName: "SalesFlow Admin",
+            passwordHash: adminPasswordHash,
+            status: "ACTIVE",
+        },
+    });
+
+    const adminMembership = await prisma.membership.upsert({
+        where: {
+            userId_organizationId: {
+                userId: adminUser.id,
+                organizationId: organization.id,
+            },
+        },
+        update: {},
+        create: {
+            userId: adminUser.id,
+            organizationId: organization.id,
+            isActive: true,
+        },
+    });
+
+    const adminRole = await prisma.role.findUniqueOrThrow({
+        where: {
+            code: "ADMIN",
+        },
+    });
+
+    await prisma.membershipRole.upsert({
+        where: {
+            membershipId_roleId: {
+                membershipId: adminMembership.id,
+                roleId: adminRole.id,
+            },
+        },
+        update: {
+            scopeType: ScopeType.GLOBAL,
+            isActive: true,
+            endsAt: null,
+        },
+        create: {
+            membershipId: adminMembership.id,
+            roleId: adminRole.id,
+            scopeType: ScopeType.GLOBAL,
+            isActive: true,
+        },
+    });
 }
 
 main().catch((e) => {

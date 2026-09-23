@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { ProtectedRoute } from "./routes/ProtectedRoute";
 import { RoleRoute } from "./routes/RoleRoute";
 import { PortalRedirect } from "./routes/PortalRedirect";
+import { LoginForm } from "./routes/Login-Form";
 import { AdminDashboard } from "./pages/admin/AdminDashboard";
 
 function PageShell({ title, children }: { title: string; children?: ReactNode }) {
@@ -15,7 +16,7 @@ function PageShell({ title, children }: { title: string; children?: ReactNode })
 }
 
 function LoginPage() {
-  return <PageShell title="Login" />;
+  return <LoginForm className="mx-auto max-w-md" />;
 }
 
 function RegisterPage() {

@@ -6,6 +6,13 @@ interface ApiResponse<T> {
 }
 
 export const authService = {
+    async login(credentials: { email: string; password: string }): Promise<{ user: AuthUser }> {
+        return apiFetch<{ user: AuthUser }>("/api/v1/auth/login", {
+            method: "POST",
+            body: JSON.stringify(credentials),
+        });
+    },
+
     async me(): Promise<AuthUser> {
         const response = await apiFetch<{ user: AuthUser }>("/api/v1/auth/me");
         return response.user;
