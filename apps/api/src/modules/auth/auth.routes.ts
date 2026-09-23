@@ -2,7 +2,7 @@ import { Router } from "express";
 
 import { register, login, getPortal } from "./auth.controller.js";
 
-import { requireAuth } from "./auth.middleware.js";
+import { authenticate } from "./auth.middleware.js";
 
 import { logout } from "./logout.js";
 
@@ -14,12 +14,12 @@ export const authRouter = Router();
 
 authRouter.post("/register", register);
 authRouter.post("/login", login);
-authRouter.post("/logout", requireAuth, logout);
-authRouter.get("/me", requireAuth, getCurrentUser);
-authRouter.get("/context", requireAuth, getAuthContext);
+authRouter.post("/logout", authenticate, logout);
+authRouter.get("/me", authenticate, getCurrentUser);
+authRouter.get("/context", authenticate, getAuthContext);
 authRouter.get(
     "/portal",
-    requireAuth,
+    authenticate,
     requirePermission("dashboard.view"),
     getPortal,
 );

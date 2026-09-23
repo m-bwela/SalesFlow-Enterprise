@@ -7,6 +7,7 @@ import { requestId } from "./middleware/request-id.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import cookieParser from "cookie-parser";
 import { notFound } from "./middleware/not-found.js";
+import dashboardRoutes from "./modules/dashboard/dashboard.routes.js";
 
 export const app = express();
 
@@ -37,5 +38,6 @@ app.use(cookieParser());
 
 app.use("/health", healthRouter);
 app.use("/api/v1/auth", authRouter);
+app.use("/api/v1/dashboard", dashboardRoutes);
 app.use(notFound);
 app.use(errorhandler);

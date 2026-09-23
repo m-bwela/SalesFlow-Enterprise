@@ -4,7 +4,7 @@ import { prisma } from "@salesflow/database";
 import { SESSION_COOKIE_NAME } from './auth.cookies.js';
 import { hashSessionToken } from "./session.js";
 
-export const requireAuth: RequestHandler = async (req, res, next) => {
+export const authenticate: RequestHandler = async (req, res, next) => {
     try {
         const token = req.cookies?.[SESSION_COOKIE_NAME];
 
