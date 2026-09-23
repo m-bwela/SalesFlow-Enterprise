@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { ProtectedRoute } from "./routes/ProtectedRoute";
 import { RoleRoute } from "./routes/RoleRoute";
 import { PortalRedirect } from "./routes/PortalRedirect";
+import { AdminDashboard } from "./pages/admin/AdminDashboard";
 
 function PageShell({ title, children }: { title: string; children?: ReactNode }) {
   return (
@@ -19,10 +20,6 @@ function LoginPage() {
 
 function RegisterPage() {
   return <PageShell title="Register" />;
-}
-
-function AdminDashboard() {
-  return <PageShell title="Admin Dashboard" />;
 }
 
 function RSMDashboard() {
