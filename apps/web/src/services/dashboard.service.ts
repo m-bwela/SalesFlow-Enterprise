@@ -8,7 +8,7 @@ export interface AdminDashboardData {
         amount: number;
         currency: string;
     };
-    order: number;
+    orders: number;
 }
 
 export async function getAdminDashboard() {

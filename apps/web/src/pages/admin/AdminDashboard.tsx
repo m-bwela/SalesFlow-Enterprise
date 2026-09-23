@@ -1,3 +1,8 @@
+import { useEffect, useState } from "react";
+
+import { getAdminDashboard } from "@/services/dashboard.service";
+import { AdminDashboardData } from "@/services/dashboard.service";
+
 import { BarChart3, ShoppingCart, Store, Users } from "lucide-react";
 
 import { AppShell } from "../../components/layout/AppShell";
@@ -11,6 +16,34 @@ import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { SystemHealth } from "@/components/dashboard/SystemHealth";
 
 export function AdminDashboard() {
+
+    const [dashboard, setDashboard] = useState<AdminDashboardData | null>(null);
+
+    const [loading, setLoading] = useState(true);
+
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        async function loadDashboard() {
+            try {
+                setLoading(true);
+                setError(null);
+
+                const data = await getAdminDashboard();
+
+                setDashboard(data);
+            } catch (err) {
+                console.error(err);
+
+                setError("Unable to load dashboard data.");
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        void loadDashboard();
+    }, []);
+
     return (
         <AppShell>
             <PageContainer>
@@ -20,37 +53,51 @@ export function AdminDashboard() {
                         description="System-wide sales and operational overview"
                     />
 
+                    {loading && (
+                        <div className="rounded-lg border p-6 text-sm text-muted-foreground">
+                            Loading dashboard...
+                        </div>
+                    )}
+
+                    {error && (
+                        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
+                            {error}
+                        </div>
+                    )}
+
                     <DashboardFilters />
 
-                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                        <KpiCard 
-                            title="Users"
-                            value="124"
-                            description="Total registered users"
-                            icon={Users}
-                        />
+                    {dashboard && (
+                        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                            <KpiCard 
+                                title="Users"
+                                value={dashboard.users.toLocaleString()}
+                                description="Active Users"
+                                icon={Users}
+                            />
 
-                        <KpiCard 
-                            title="Online Users"
-                            value="18"
-                            description="Currently active"
-                            icon={Users}
-                        />
+                            <KpiCard 
+                                title="Online Users"
+                                value={dashboard.onlineUsers.toLocaleString()}
+                                description="Active within the last 5 minutes"
+                                icon={Users}
+                            />
 
-                        <KpiCard 
-                            title="Outlets"
-                            value="2,482"
-                            description="Registered outlets"
-                            icon={Store}
-                        />
+                            <KpiCard 
+                                title="Outlets"
+                                value={dashboard.outlets.toLocaleString()}
+                                description="Registered outlets"
+                                icon={Store}
+                            />
 
-                        <KpiCard 
-                            title="Sales"
-                            value="KES 7.8M"
-                            description="Selected period"
-                            icon={ShoppingCart}
-                        />
-                    </div>
+                            <KpiCard 
+                                title="Sales"
+                                value={`${dashboard.sales.currency} ${dashboard.sales.amount.toLocaleString()}`}
+                                description="Selected Period"
+                                icon={ShoppingCart}
+                            />
+                        </div>
+                    )}
 
                     <div className="grid gap-6 xl:grid-cols-3">
                         <div className="xl:col-span-2">
@@ -59,7 +106,7 @@ export function AdminDashboard() {
 
                         <KpiCard 
                             title="Orders"
-                            value="3,439"
+                            value={dashboard?.orders.toLocaleString() ?? "0"}
                             description="Orders in selected period"
                             icon={BarChart3}
                         />

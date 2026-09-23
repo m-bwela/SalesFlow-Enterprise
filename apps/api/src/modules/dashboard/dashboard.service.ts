@@ -1,30 +1,54 @@
 import { prisma } from "@salesflow/database";
 
 export async function getAdminDashboard() {
-    const [
-        userCount,
-        outletCount,
-        orderCount,
-    ] = await Promise.all([
-        prisma.user.count({
-            where: {
-                isActive: true,
-            },
-        }),
+   const now = new Date();
 
-        prisma.outlet.count(),
+   // Consider a session online when:
+   // - it has not been revoked
+   //- it has not expired
+   // - it has been active within the last 5 minutes
+   const onlineSince = new Date(
+    now.getTime() - 5 * 60 * 1000,
+   );
 
-        prisma.salesOrder.count(),
-    ]);
-
-    return {
-        users: userCount,
-        onlineUsers: 0,
-        outlets: outletCount,
-        sales: {
-            amount: 0,
-            currency: "KES"
+   const [userCount, onlineSessions] = await Promise.all([
+    prisma.user.count({
+        where: {
+            status: "ACTIVE",
         },
-        orders: orderCount,
-    };
+    }),
+
+    prisma.session.findMany({
+        where: {
+            revokedAt: null,
+            expiresAt: {
+                gt: now,
+            },
+            lastSeenAt: {
+                gte: onlineSince,
+            },
+        },
+        select: {
+            userId: true,
+        },
+        distinct: ["userId"],
+    }),
+   ]);
+
+   return {
+    users: userCount,
+
+    onlineUsers: onlineSessions.length,
+
+    // Sales, outlets and orders will be connected
+    // when those domains are implemented
+    outlets: 0,
+
+    sales: {
+        amount: 0,
+        currency: "KES",
+    },
+
+    orders: 0,
+   };
 }
