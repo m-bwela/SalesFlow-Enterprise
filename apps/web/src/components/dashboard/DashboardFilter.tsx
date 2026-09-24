@@ -36,10 +36,10 @@ export function DashboardFilters({
     function applyFilters() {
         onApply({
             period,
-            regionId: === "all" ? undefined : regionId,
-            territoryId: === "all" ? undefined : territoryId,
-            distributorId: === "all" ? undefined : distributorId,
-            asrId: === "all" ? undefined : asrId,
+            regionId: regionId === "all" ? undefined : regionId,
+            territoryId: territoryId === "all" ? undefined : territoryId,
+            distributorId: distributorId === "all" ? undefined : distributorId,
+            asrId: asrId === "all" ? undefined : asrId,
         });
     }
 
@@ -76,7 +76,7 @@ export function DashboardFilters({
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <Select
                     value={regionId}
-                    onValueChange={setRegionId}
+                    onValueChange={(value) => setRegionId(value ?? "all")}
                 >
                     <SelectTrigger>
                         <SelectValue placeholder="Region" />
@@ -123,7 +123,7 @@ export function DashboardFilters({
 
                 <Select
                     value={territoryId}
-                    onValueChange={setTerritoryId}
+                    onValueChange={(value) => setTerritoryId(value ?? "all")}
                 >
                     <SelectTrigger>
                         <SelectValue placeholder="Territory" />
@@ -142,7 +142,7 @@ export function DashboardFilters({
 
                 <Select
                     value={distributorId}
-                    onValueChange={setDistributorId}
+                    onValueChange={(value) => setDistributorId(value ?? "all")}
                 >
                     <SelectTrigger>
                         <SelectValue placeholder="Distributor" />
@@ -157,7 +157,7 @@ export function DashboardFilters({
 
                 <Select
                     value={asrId}
-                    onValueChange={setAsrId}
+                    onValueChange={(value) => setAsrId(value ?? "all")}
                 >
                     <SelectTrigger>
                         <SelectValue placeholder="ASR" />

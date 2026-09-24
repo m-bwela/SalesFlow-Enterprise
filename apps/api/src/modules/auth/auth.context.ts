@@ -12,6 +12,15 @@ export async function getAuthContext(
     try {
         const user = res.locals.user;
 
+        if (!user) {
+            return res.status(401).json({
+                error: {
+                    code: "UNAUTHENTICATED",
+                    message: "Authentication required",
+                },
+            });
+        }
+
         const membership = await prisma.membership.findFirst({
             where: {
                 userId: user.id,

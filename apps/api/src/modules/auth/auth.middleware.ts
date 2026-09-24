@@ -55,8 +55,17 @@ export const authenticate: RequestHandler = async (req, res, next) => {
             return; // Ensure the request does not proceed further
         }
 
-        res.locals.user = session.user;
-        res.locals.session = session;
+        const user = session.user;
+        const authSession = {
+            id: session.id,
+            userId: session.userId,
+            expiresAt: session.expiresAt,
+            revokedAt: session.revokedAt,
+            user,
+        };
+
+        res.locals.user = user;
+        res.locals.session = authSession;
 
         next(); // Proceed to the next middleware or route handler
     } catch (error) {

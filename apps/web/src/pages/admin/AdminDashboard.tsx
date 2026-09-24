@@ -9,7 +9,8 @@ import { AppShell } from "../../components/layout/AppShell";
 import { PageContainer } from "../../components/layout/PageContainer";
 
 import { DashboardHeader } from "../../components/dashboard/DashboardHeader";
-import type { DashboardFilters } from "@/components/dashboard/DashboardFilter";
+import { DashboardFilters as DashboardFiltersComponent } from "@/components/dashboard/DashboardFilter";
+import type { DashboardFilters } from "@/types/dashboard";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { SalesTrend } from "@/components/dashboard/SalesTrend";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
@@ -67,8 +68,8 @@ export function AdminDashboard() {
                         </div>
                     )}
 
-                    <DashboardFilters 
-                        onApply={(nextFilters) => {
+                    <DashboardFiltersComponent
+                        onApply={(nextFilters: DashboardFilters) => {
                             setFilters(nextFilters);
                         }}
                     />
