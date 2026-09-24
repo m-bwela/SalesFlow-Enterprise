@@ -1,6 +1,8 @@
 import { prisma } from "@salesflow/database";
 
-export async function getAdminDashboard() {
+import type { DashboardFilters } from "./dashboard.types.js";
+
+export async function getAdminDashboard(filters: DashboardFilters) {
    const now = new Date();
 
    // Consider a session online when:

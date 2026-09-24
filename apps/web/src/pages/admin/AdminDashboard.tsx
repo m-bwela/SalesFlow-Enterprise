@@ -9,7 +9,7 @@ import { AppShell } from "../../components/layout/AppShell";
 import { PageContainer } from "../../components/layout/PageContainer";
 
 import { DashboardHeader } from "../../components/dashboard/DashboardHeader";
-import { DashboardFilters } from "@/components/dashboard/DashboardFilter";
+import type { DashboardFilters } from "@/components/dashboard/DashboardFilter";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { SalesTrend } from "@/components/dashboard/SalesTrend";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
@@ -23,13 +23,15 @@ export function AdminDashboard() {
 
     const [error, setError] = useState<string | null>(null);
 
+    const [filters, setFilters] = useState<DashboardFilters>({period: "1M"});
+
     useEffect(() => {
         async function loadDashboard() {
             try {
                 setLoading(true);
                 setError(null);
 
-                const data = await getAdminDashboard();
+                const data = await getAdminDashboard(filters);
 
                 setDashboard(data);
             } catch (err) {
@@ -42,7 +44,7 @@ export function AdminDashboard() {
         }
 
         void loadDashboard();
-    }, []);
+    }, [filters]);
 
     return (
         <AppShell>
@@ -65,7 +67,11 @@ export function AdminDashboard() {
                         </div>
                     )}
 
-                    <DashboardFilters />
+                    <DashboardFilters 
+                        onApply={(nextFilters) => {
+                            setFilters(nextFilters);
+                        }}
+                    />
 
                     {dashboard && (
                         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
