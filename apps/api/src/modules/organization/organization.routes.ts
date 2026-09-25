@@ -22,7 +22,10 @@ router.get(
                 });
             }
 
-            const regions = await getOrganizationFilters(membership.organizationId);
+            const regions = await getOrganizationFilters(
+                membership.organizationId,
+                res.locals.authorizationScope,
+            );
 
             return res.json({
                 data: regions,
