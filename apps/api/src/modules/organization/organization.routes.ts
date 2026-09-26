@@ -22,13 +22,13 @@ router.get(
                 });
             }
 
-            const regions = await getOrganizationFilters(
+            const filters = await getOrganizationFilters(
                 membership.organizationId,
                 res.locals.authorizationScope,
             );
 
             return res.json({
-                data: regions,
+                data: filters,
             })
         } catch (error) {
             next(error);
