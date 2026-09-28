@@ -5,32 +5,31 @@ import { RoleRoute } from "./routes/RoleRoute";
 import { PortalRedirect } from "./routes/PortalRedirect";
 import { LoginForm } from "./routes/Login-Form";
 import { AdminDashboard } from "./pages/admin/AdminDashboard";
-import {
-  AnalyticsPage,
-  ASRDashboardPage,
-  ASRManagementPage,
-  AssetInventoryPage,
-  AssetsPage,
-  InventoryPage,
-  ModernTradeOutletsPage,
-  ModernTradePerformancePage,
-  ModernTradeSalesPage,
-  ModernTradeTSMPage,
-  OnlineUsersPage,
-  OrganizationStructurePage,
-  OutletsPage,
-  PerformancePage,
-  ProductsPage,
-  ReportsPage,
-  RouteActivityPage,
-  RouteEffectivenessPage,
-  RoutePlansPage,
-  RoutesPage,
-  SalesDashboardPage,
-  UserActivityPage,
-  UserImpersonationPage,
-  WarehousesPage,
-} from "./pages/admin/AdminModulePages";
+import { AnalyticsPage } from "./pages/admin/AnalyticsPage";
+import { ASRDashboardPage } from "./pages/admin/ASRDashboardPage";
+import { ASRManagementPage } from "./pages/admin/ASRManagementPage";
+import { TSMDashboardPage } from "./pages/admin/TSMDashboardPage";
+import { AssetInventoryPage } from "./pages/admin/AssetInventoryPage";
+import { AssetsPage } from "./pages/admin/AssetsPage";
+import { InventoryPage } from "./pages/admin/InventoryPage";
+import { ModernTradeOutletsPage } from "./pages/admin/ModernTradeOutletsPage";
+import { ModernTradePerformancePage } from "./pages/admin/ModernTradePerformancePage";
+import { ModernTradeSalesPage } from "./pages/admin/ModernTradeSalesPage";
+import { ModernTradeTSMPage } from "./pages/admin/ModernTradeTSMPage";
+import { OnlineUsersPage } from "./pages/admin/OnlineUsersPage";
+import { OrganizationStructurePage } from "./pages/admin/OrganizationStructure";
+import { OutletsPage } from "./pages/admin/OutletsPage";
+import { PerformancePage } from "./pages/admin/PerformancePage";
+import { ProductsPage } from "./pages/admin/ProductsPage";
+import { ReportsPage } from "./pages/admin/ReportsPage";
+import { RouteActivityPage } from "./pages/admin/RouteActivityPage";
+import { RouteEffectivenessPage } from "./pages/admin/RouteEffectivenessPage";
+import { RoutePlansPage } from "./pages/admin/RoutePlansPage";
+import { RoutesPage } from "./pages/admin/RoutesPage";
+import { SalesDashboardPage } from "./pages/admin/SalesDashboardPage";
+import { UserActivityPage } from "./pages/admin/UserActivityPage";
+import { UserImpersonationPage } from "./pages/admin/UserImpersonationPage";
+import { WarehousesPage } from "./pages/admin/WarehousesPage";
 import { RegionsPage } from "./pages/admin/RegionsPage";
 import { TerritoriesPage } from "./pages/admin/TerritoriesPage";
 import { DistributorsPage } from "./pages/admin/DistributorsPage";
@@ -88,7 +87,7 @@ function App() {
             <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="asr-dashboard" element={<ASRDashboardPage />} />
-            <Route path="tsm-dashboard" element={<ASRDashboardPage />} />
+            <Route path="tsm-dashboard" element={<TSMDashboardPage />} />
             <Route path="routes/activity" element={<RouteActivityPage />} />
             <Route path="routes/effectiveness" element={<RouteEffectivenessPage />} />
             <Route path="routes" element={<RoutesPage />} />

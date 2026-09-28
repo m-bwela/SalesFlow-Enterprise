@@ -26,14 +26,38 @@ interface Metric {
   icon: LucideIcon;
 }
 
+interface AdminSection {
+  title: string;
+  items: string[];
+}
+
 interface AdminOverviewPageProps {
   title: string;
   description: string;
   metrics: Metric[];
-  highlights: string[];
+  highlights?: string[];
+  sections?: AdminSection[];
+  nextActions?: string[];
 }
 
-function AdminOverviewPage({ title, description, metrics, highlights }: AdminOverviewPageProps) {
+function AdminOverviewPage({
+  title,
+  description,
+  metrics,
+  highlights = [],
+  sections,
+  nextActions,
+}: AdminOverviewPageProps) {
+  const contentSections = sections && sections.length > 0 ? sections : [{ title: "Operational snapshot", items: highlights }];
+  const actions = nextActions && nextActions.length > 0
+    ? nextActions
+    : [
+        "Confirm the latest sales and coverage data sync.",
+        "Review route performance and approval queue.",
+        "Validate user access and role assignments.",
+        "Review stock and asset levels before the next cycle.",
+      ];
+
   return (
     <AppShell>
       <PageContainer>
@@ -53,25 +77,28 @@ function AdminOverviewPage({ title, description, metrics, highlights }: AdminOve
           </div>
 
           <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
-            <div className="rounded-xl border bg-card p-6 shadow-sm">
-              <h2 className="mb-4 text-lg font-semibold">Operational snapshot</h2>
-              <div className="space-y-3">
-                {highlights.map((item) => (
-                  <div key={item} className="flex items-start gap-3 rounded-md border bg-muted/20 p-3">
-                    <div className="mt-1 h-2.5 w-2.5 rounded-full bg-primary" />
-                    <p className="text-sm text-muted-foreground">{item}</p>
+            <div className="space-y-4">
+              {contentSections.map((section) => (
+                <div key={section.title} className="rounded-xl border bg-card p-6 shadow-sm">
+                  <h2 className="mb-4 text-lg font-semibold">{section.title}</h2>
+                  <div className="space-y-3">
+                    {section.items.map((item) => (
+                      <div key={item} className="flex items-start gap-3 rounded-md border bg-muted/20 p-3">
+                        <div className="mt-1 h-2.5 w-2.5 rounded-full bg-primary" />
+                        <p className="text-sm text-muted-foreground">{item}</p>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
 
             <div className="rounded-xl border bg-card p-6 shadow-sm">
               <h2 className="mb-4 text-lg font-semibold">Next actions</h2>
               <ul className="space-y-3 text-sm text-muted-foreground">
-                <li>• Confirm the latest sales and coverage data sync.</li>
-                <li>• Review route performance and approval queue.</li>
-                <li>• Validate user access and role assignments.</li>
-                <li>• Review stock and asset levels before the next cycle.</li>
+                {actions.map((item) => (
+                  <li key={item}>• {item}</li>
+                ))}
               </ul>
             </div>
           </div>
@@ -92,10 +119,29 @@ export function SalesDashboardPage() {
         { title: "Active outlets", value: "486", description: "Outlet coverage", icon: Store },
         { title: "Avg basket", value: "KES 7,680", description: "Per order", icon: Gauge },
       ]}
-      highlights={[
-        "The Coast region is leading in volume this week, driven by strong distributor replenishment.",
-        "Modern trade sales are recovering after the previous week’s stock delay.",
-        "Customer retention remains stable with an increase in repeat visits in Nairobi.",
+      sections={[
+        {
+          title: "Sales momentum",
+          items: [
+            "The Coast region is leading in volume this week, driven by strong distributor replenishment.",
+            "Modern trade sales are recovering after the previous week’s stock delay.",
+            "Customer retention remains stable with an increase in repeat visits in Nairobi.",
+          ],
+        },
+        {
+          title: "Channel focus",
+          items: [
+            "General trade remains the largest volume driver across the weekly cycle.",
+            "Modern trade is improving its average order value and conversion quality.",
+            "Regional incentives are aligning better with seasonal outlet demand.",
+          ],
+        },
+      ]}
+      nextActions={[
+        "Confirm the latest sales and coverage data sync.",
+        "Review route performance and approval queue.",
+        "Validate top-performing outlets for replenishment planning.",
+        "Check distributor stock issues before the next cycle.",
       ]}
     />
   );
@@ -112,10 +158,29 @@ export function PerformancePage() {
         { title: "Active reps", value: "138", description: "Field coverage", icon: Users },
         { title: "Route completion", value: "86%", description: "Completed routes", icon: Activity },
       ]}
-      highlights={[
-        "Regional teams hit the highest score in the last 7-day cycle for order conversion.",
-        "Route completion remains strongest in urban territories with minimal disruptions.",
-        "Focus remains on reducing missed calls and replenishment delays in the West.",
+      sections={[
+        {
+          title: "Execution highlights",
+          items: [
+            "Regional teams hit the highest score in the last 7-day cycle for order conversion.",
+            "Route completion remains strongest in urban territories with minimal disruptions.",
+            "Focus remains on reducing missed calls and replenishment delays in the West.",
+          ],
+        },
+        {
+          title: "Team performance",
+          items: [
+            "Sales and field managers are tracking against weighted key deliverables.",
+            "The strongest results are coming from regular route planning and call discipline.",
+            "A few teams need coaching to close the gap on conversion quality.",
+          ],
+        },
+      ]}
+      nextActions={[
+        "Review the region scorecard and closure plan.",
+        "Identify underperforming reps for targeted coaching.",
+        "Rebalance route schedules in the western territory.",
+        "Prepare weekly performance review for leadership.",
       ]}
     />
   );
@@ -132,10 +197,29 @@ export function AnalyticsPage() {
         { title: "Top SKU", value: "SKU-2041", description: "Fastest mover", icon: Package },
         { title: "Return rate", value: "1.9%", description: "Compared to target", icon: FileText },
       ]}
-      highlights={[
-        "Fast-moving products remain concentrated in the top three territories for volume growth.",
-        "Modern trade continues to lift average order size while general trade remains the volume leader.",
-        "Stock-out risk is low, but attention is needed on the Central region replenishment cycle.",
+      sections={[
+        {
+          title: "Trend watch",
+          items: [
+            "Fast-moving products remain concentrated in the top three territories for volume growth.",
+            "Modern trade continues to lift average order size while general trade remains the volume leader.",
+            "Stock-out risk is low, but attention is needed on the Central region replenishment cycle.",
+          ],
+        },
+        {
+          title: "Opportunity areas",
+          items: [
+            "Premium assortments are under-indexing in some secondary route clusters.",
+            "Pricing and promotion mix can improve category conversion in city hubs.",
+            "More granular product-level demand by territory will sharpen planning.",
+          ],
+        },
+      ]}
+      nextActions={[
+        "Refresh the product trend review for the top territories.",
+        "Inspect pricing and promotion shifts by channel.",
+        "Monitor stock risk in the Central region.",
+        "Prepare a category health summary for the next review.",
       ]}
     />
   );
@@ -152,10 +236,29 @@ export function ReportsPage() {
         { title: "Audit checks", value: "100%", description: "Completed", icon: ShieldCheck },
         { title: "Last sync", value: "09:15 AM", description: "System update", icon: Activity },
       ]}
-      highlights={[
-        "The monthly operations summary has been generated and queued for distribution.",
-        "Regional managers can review performance by territory, distributor, and month.",
-        "Audit logs are clean and the reporting pipeline remains synchronized with source data.",
+      sections={[
+        {
+          title: "Report status",
+          items: [
+            "The monthly operations summary has been generated and queued for distribution.",
+            "Regional managers can review performance by territory, distributor, and month.",
+            "Audit logs are clean and the reporting pipeline remains synchronized with source data.",
+          ],
+        },
+        {
+          title: "Review queue",
+          items: [
+            "Three exports are waiting on final sign-off from stakeholders.",
+            "Leadership review is scheduled for the next operating cycle.",
+            "Data checks are complete and ready for broader distribution.",
+          ],
+        },
+      ]}
+      nextActions={[
+        "Send the monthly summary to regional heads.",
+        "Complete the remaining export approvals.",
+        "Check audit trail completeness before sign-off.",
+        "Schedule the next report distribution window.",
       ]}
     />
   );
