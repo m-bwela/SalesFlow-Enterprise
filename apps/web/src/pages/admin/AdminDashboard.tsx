@@ -30,21 +30,21 @@ export function AdminDashboard() {
         async function loadDashboard() {
             try {
                 setLoading(true);
-                setError(null);
+
 
                 const data = await getAdminDashboard(filters);
 
                 setDashboard(data);
             } catch (err) {
-                console.error(err);
+                console.error("Failed to load admin dashboard:", error);
 
-                setError("Unable to load dashboard data.");
+
             } finally {
                 setLoading(false);
             }
         }
 
-        void loadDashboard();
+        loadDashboard();
     }, [filters]);
 
     return (
@@ -52,7 +52,7 @@ export function AdminDashboard() {
             <PageContainer>
                 <div className="space-y-6">
                     <DashboardHeader 
-                        title="Admin Dashboard"
+                        title="Sales Intelligence"
                         description="System-wide sales and operational overview"
                     />
 

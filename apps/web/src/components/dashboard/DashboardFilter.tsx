@@ -10,6 +10,7 @@ interface DashboardFilterProps {
 }
 
 const periods: DashboardPeriod[] = [
+    "LIVE",
     "1D",
     "1W",
     "1M",
@@ -25,13 +26,13 @@ export function DashboardFilters({
 }: DashboardFilterProps) {
     const [period, setPeriod] = useState<DashboardPeriod>("1M");
 
-    const [regionId, setRegionId] = useState<string>("all");
+    const [regionId, setRegionId] = useState<string>("All Regions");
 
-    const [territoryId, setTerritoryId] = useState<string>("all");
+    const [territoryId, setTerritoryId] = useState<string>("All Territories");
 
-    const [distributorId, setDistributorId] = useState<string>("all");
+    const [distributorId, setDistributorId] = useState<string>("All Distributors");
 
-    const [asrId, setAsrId] = useState<string>("all");
+    const [asrId, setAsrId] = useState<string>("All Agents");
 
     function applyFilters() {
         onApply({
@@ -57,17 +58,24 @@ export function DashboardFilters({
     return (
         <div className="space-y-4">
             {/* Time period */}
-            <div className="flex flex-wrap gap-1 rounded-lg bg-muted p-1">
+            <div className="flex flex-wrap items-center gap-15 rounded-lg bg-muted p-1">
                 {periods.map((value) => (
                     <Button
                         key={value}
                         type="button"
                         variant={period === value ? "default" : "ghost"}
                         size="sm"
-                        className="h-8"
+                        className={`h-8 ${value === "LIVE" ? "gap-2 bg-transparent text-emerald-400 hover:bg-transparent" : ""}`}
                         onClick={() => setPeriod(value)}
                     >
-                        {value}
+                        {value === "LIVE" ? (
+                            <>
+                                <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                <span>{value}</span>
+                            </>
+                        ) : (
+                            value
+                        )}
                     </Button>
                 ))}
             </div>
@@ -76,14 +84,14 @@ export function DashboardFilters({
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <Select
                     value={regionId}
-                    onValueChange={(value) => setRegionId(value ?? "all")}
+                    onValueChange={(value) => setRegionId(value ?? "All Regions")}
                 >
                     <SelectTrigger>
                         <SelectValue placeholder="Region" />
                     </SelectTrigger>
 
                     <SelectContent>
-                        <SelectItem value="all">
+                        <SelectItem value="All Regions">
                             All Regions
                         </SelectItem>
 
@@ -130,7 +138,7 @@ export function DashboardFilters({
                     </SelectTrigger>
 
                     <SelectContent>
-                        <SelectItem value="all">
+                        <SelectItem value="All Territories">
                             All Territories
                         </SelectItem>
 
@@ -164,7 +172,7 @@ export function DashboardFilters({
                     </SelectTrigger>
 
                     <SelectContent>
-                        <SelectItem value="all">
+                        <SelectItem value="All Agents">
                             All ASRs
                         </SelectItem>
 

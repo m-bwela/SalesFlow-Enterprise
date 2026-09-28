@@ -1,4 +1,5 @@
 export type DashboardPeriod = 
+    | "LIVE"
     | "1D"
     | "1W"
     | "1M"

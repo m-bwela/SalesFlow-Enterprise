@@ -17,11 +17,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [loading, setLoading] = useState(true);
 
     async function refresh() {
+        setLoading(true);
+
         try {
             const context = await authService.context();
             setAuth(context);
         } catch {
             setAuth(null);
+        } finally {
+            setLoading(false);
         }
     }
 

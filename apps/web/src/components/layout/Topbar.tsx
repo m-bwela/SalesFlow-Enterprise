@@ -1,4 +1,4 @@
-import { LogOut, User } from "lucide-react";
+import { LogOut, Search, User } from "lucide-react";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import {
   DropdownMenu,
@@ -7,6 +7,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+import { Input } from "../ui/input";
 import { SidebarTrigger } from "../ui/sidebar";
 import { useAuth } from "../../context/AuthContext";
 
@@ -21,7 +22,18 @@ export function Topbar() {
 
   return (
     <header className="flex h-16 items-center justify-between border-b px-4">
-      <SidebarTrigger />
+      <div className="flex items-center gap-4">
+        <SidebarTrigger />
+
+        <div className="relative hidden w-100 md:block">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="outlets, coolers, distributors, products, tickets..."
+            className="h-9 border-border/70 bg-muted/30 pl-9 text-sm shadow-none focus-visible:ring-0"
+          />
+        </div>
+      </div>
 
       <div className="flex items-center gap-3">
         <div className="hidden text-right sm:block">

@@ -1,12 +1,15 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.js";
+import { Spinner } from "@/components/ui/spinner";
 
 export function PortalRedirect() {
     const { auth, loading } = useAuth();
 
     if (loading) {
         return (
-            <div>Loading SalesFlow...</div>
+            <div className="flex min-h-screen items-center justify-center bg-background">
+                <Spinner className="size-8 text-primary" />
+            </div>
         );
     }
 
