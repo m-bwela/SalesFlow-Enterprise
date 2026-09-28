@@ -24,7 +24,7 @@ export function DashboardHeader({
     const formattedDate = new Intl.DateTimeFormat("en-GB", {
         weekday: "long",
         day: "2-digit",
-        month: "short",
+        month: "long",
         year: "numeric",
     }).format(now);
 
