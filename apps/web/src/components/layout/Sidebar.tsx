@@ -16,8 +16,11 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { getNavigationForRole } from "../../config/navigation";
 
+interface SidebarProps {
+  onNavigateStart?: () => void;
+}
 
-export function Sidebar() {
+export function Sidebar({ onNavigateStart }: SidebarProps) {
   const { auth } = useAuth();
   const navigate = useNavigate();
   const role = auth?.roles[0]?.code;
@@ -49,7 +52,20 @@ export function Sidebar() {
 
                   return (
                     <SidebarMenuItem key={item.url}>
-                      <SidebarMenuButton tooltip={item.title} onClick={() => navigate(item.url)}>
+                      <SidebarMenuButton
+                        tooltip={item.title}
+                        onClick={() => {
+                          if (item.url.startsWith("/admin") && onNavigateStart) {
+                            onNavigateStart();
+                            window.setTimeout(() => {
+                              navigate(item.url);
+                            }, 500);
+                            return;
+                          }
+
+                          navigate(item.url);
+                        }}
+                      >
                         <Icon />
                         <span>{item.title}</span>
                       </SidebarMenuButton>
