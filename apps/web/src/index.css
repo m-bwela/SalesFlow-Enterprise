@@ -7,42 +7,42 @@
 
 :root {
   color-scheme: light;
-  --background: #f5f1e8;
-  --foreground: #1b1d21;
-  --card: rgba(255, 255, 255, 0.8);
-  --card-foreground: #1b1d21;
+  --background: #f7f3eb;
+  --foreground: #1a1d20;
+  --card: rgba(255, 255, 255, 0.84);
+  --card-foreground: #1a1d20;
   --popover: rgba(255, 255, 255, 0.97);
-  --popover-foreground: #1b1d21;
-  --primary: #b6843d;
-  --primary-foreground: #fffaf3;
-  --secondary: rgba(182, 132, 61, 0.12);
-  --secondary-foreground: #1b1d21;
-  --muted: rgba(182, 132, 61, 0.08);
-  --muted-foreground: #5c5663;
-  --accent: rgba(182, 132, 61, 0.12);
-  --accent-foreground: #1b1d21;
-  --destructive: #ef4444;
-  --border: rgba(120, 97, 68, 0.18);
-  --input: rgba(255, 255, 255, 0.7);
-  --ring: rgba(182, 132, 61, 0.7);
-  --chart-1: #b6843d;
-  --chart-2: #e7c37e;
-  --chart-3: #8f6a35;
-  --chart-4: #d1b37a;
-  --chart-5: #f0e2b8;
+  --popover-foreground: #1a1d20;
+  --primary: #b7833d;
+  --primary-foreground: #fffaf2;
+  --secondary: rgba(183, 131, 61, 0.1);
+  --secondary-foreground: #1a1d20;
+  --muted: rgba(183, 131, 61, 0.09);
+  --muted-foreground: #5c5560;
+  --accent: rgba(183, 131, 61, 0.12);
+  --accent-foreground: #1a1d20;
+  --destructive: #e05757;
+  --border: rgba(126, 101, 66, 0.18);
+  --input: rgba(255, 255, 255, 0.78);
+  --ring: rgba(183, 131, 61, 0.7);
+  --chart-1: #b7833d;
+  --chart-2: #ddb777;
+  --chart-3: #8d673b;
+  --chart-4: #f1d8a0;
+  --chart-5: #f8edd2;
   --radius: 0.875rem;
-  --sidebar: #fdfaf5;
+  --sidebar: #fffaf5;
   --sidebar-foreground: #1a1d20;
-  --sidebar-primary: #b6843d;
-  --sidebar-primary-foreground: #fffaf3;
-  --sidebar-accent: rgba(182, 132, 61, 0.1);
+  --sidebar-primary: #b7833d;
+  --sidebar-primary-foreground: #fffaf2;
+  --sidebar-accent: rgba(183, 131, 61, 0.1);
   --sidebar-accent-foreground: #1a1d20;
-  --sidebar-border: rgba(120, 97, 68, 0.14);
-  --sidebar-ring: rgba(182, 132, 61, 0.7);
+  --sidebar-border: rgba(126, 101, 66, 0.14);
+  --sidebar-ring: rgba(183, 131, 61, 0.7);
 }
 
 html {
-  background: #f5f1e8;
+  background: #f7f3eb;
 }
 
 body {
@@ -51,9 +51,9 @@ body {
   min-height: 100vh;
   font-family: "Inter", "Segoe UI", sans-serif;
   background:
-    radial-gradient(circle at top left, rgba(182, 132, 61, 0.15), transparent 25%),
-    radial-gradient(circle at bottom right, rgba(139, 92, 32, 0.12), transparent 28%),
-    linear-gradient(135deg, #f5f1e8 0%, #f8f5f0 42%, #f3efe7 100%);
+    radial-gradient(circle at top left, rgba(183, 131, 61, 0.16), transparent 24%),
+    radial-gradient(circle at bottom right, rgba(120, 92, 54, 0.1), transparent 28%),
+    linear-gradient(135deg, #f9f5ef 0%, #f5efe5 32%, #f3eee7 100%);
   color: var(--foreground);
 }
 
