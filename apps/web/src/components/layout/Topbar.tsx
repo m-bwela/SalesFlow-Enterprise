@@ -1,4 +1,5 @@
-import { LogOut, Search, User } from "lucide-react";
+import { useEffect, useState } from "react";
+import { LogOut, Moon, Search, SunMedium, User } from "lucide-react";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import {
   DropdownMenu,
@@ -13,6 +14,25 @@ import { useAuth } from "../../context/AuthContext";
 
 export function Topbar() {
   const { auth, logout } = useAuth();
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    if (typeof window === "undefined") {
+      return "dark";
+    }
+
+    const savedTheme = window.localStorage.getItem("salesflow-theme");
+    if (savedTheme === "dark" || savedTheme === "light") {
+      return savedTheme;
+    }
+
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle("dark", theme === "dark");
+    root.style.colorScheme = theme;
+    window.localStorage.setItem("salesflow-theme", theme);
+  }, [theme]);
 
   const initials = auth?.user.displayName
     ?.split(" ")
@@ -36,6 +56,15 @@ export function Topbar() {
       </div>
 
       <div className="flex items-center gap-3">
+        <button
+          type="button"
+          aria-label="Toggle theme"
+          onClick={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-foreground transition hover:bg-muted"
+        >
+          {theme === "dark" ? <SunMedium className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        </button>
+
         <div className="hidden text-right sm:block">
           <p className="text-sm font-medium">{auth?.user.displayName}</p>
           <p className="text-xs text-muted-foreground">
