@@ -10,6 +10,7 @@ const router = Router();
 
 const dashboardFilterSchema = z.object({
     period: z.enum([
+        "LIVE",
         "1D",
         "1W",
         "1M",

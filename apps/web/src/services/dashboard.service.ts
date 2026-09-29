@@ -4,12 +4,16 @@ import type { DashboardFilters } from "@/types/dashboard";
 export interface AdminDashboardData {
     users: number;
     onlineUsers: number;
-    outlets: number;
-    sales: {
-        amount: number;
-        currency: string;
-    };
-    orders: number;
+    organizations: number;
+    regions: number;
+    territories: number;
+    distributors: number;
+    warehouses: number;
+    memberships: number;
+    newUsers: number;
+    newOrganizations: number;
+    userTrend: number[];
+    organizationTrend: number[];
 }
 
 export async function getAdminDashboard(

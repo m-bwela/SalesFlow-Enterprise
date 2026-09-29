@@ -1,5 +1,6 @@
 export interface DashboardFilters {
     period: 
+        | "LIVE"
         | "1D"
         | "1W"
         | "1M"

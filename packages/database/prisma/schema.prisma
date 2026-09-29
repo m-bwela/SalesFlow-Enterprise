@@ -34,6 +34,15 @@ enum DocumentStatus {
   ARCHIVED
 }
 
+enum SalesOrderStatus {
+  DRAFT
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
 enum RoleCode {
   ADMIN
   RSM
@@ -67,6 +76,7 @@ model User {
   sessions         Session[]
   createdDocuments Document[]   @relation("DocumentCreatedBy")
   ownedDocuments   Document[]   @relation("DocumentOwner")
+  createdSalesOrders SalesOrder[] @relation("SalesOrderCreatedBy")
   auditLogs        AuditLog[]   @relation("AuditActor")
 
   @@index([status])
@@ -146,6 +156,9 @@ model Organization {
   regions     Region[]
   memberships Membership[]
   documents   Document[]
+  products    Product[]
+  outlets     Outlet[]
+  salesOrders SalesOrder[]
   auditLogs   AuditLog[]
 
   @@map("organizations")
@@ -196,6 +209,8 @@ model Distributor {
 
   territory  Territory   @relation(fields: [territoryId], references: [id], onDelete: Restrict)
   warehouses Warehouse[]
+  outlets    Outlet[]
+  salesOrders SalesOrder[]
 
   @@unique([territoryId, code])
   @@index([territoryId])
@@ -216,6 +231,95 @@ model Warehouse {
   @@unique([distributorId, code])
   @@index([distributorId])
   @@map("warehouses")
+}
+
+model Product {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  sku            String
+  name           String
+  category       String?
+  unitOfMeasure  String   @default("unit")
+  unitPrice      Decimal  @db.Decimal(12, 2)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  orderItems   SalesOrderItem[]
+
+  @@unique([organizationId, sku])
+  @@index([organizationId, isActive])
+  @@map("products")
+}
+
+model Outlet {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  distributorId  String   @db.Uuid
+  code           String
+  name           String
+  address        String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  distributor  Distributor  @relation(fields: [distributorId], references: [id], onDelete: Restrict)
+  salesOrders  SalesOrder[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, isActive])
+  @@index([distributorId])
+  @@map("outlets")
+}
+
+model SalesOrder {
+  id               String           @id @default(uuid()) @db.Uuid
+  organizationId   String           @db.Uuid
+  outletId         String           @db.Uuid
+  distributorId    String           @db.Uuid
+  createdById      String           @db.Uuid
+  orderNumber      String
+  status           SalesOrderStatus @default(CONFIRMED)
+  currency         String           @default("KES") @db.VarChar(3)
+  orderDate        DateTime         @default(now())
+  expectedDeliveryAt DateTime?
+  deliveredAt      DateTime?
+  cancelledAt      DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  outlet       Outlet           @relation(fields: [outletId], references: [id], onDelete: Restrict)
+  distributor  Distributor      @relation(fields: [distributorId], references: [id], onDelete: Restrict)
+  createdBy    User             @relation("SalesOrderCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  items        SalesOrderItem[]
+
+  @@unique([organizationId, orderNumber])
+  @@index([organizationId, orderDate, status])
+  @@index([distributorId, orderDate])
+  @@index([outletId, orderDate])
+  @@index([status, deliveredAt])
+  @@map("sales_orders")
+}
+
+model SalesOrderItem {
+  id            String   @id @default(uuid()) @db.Uuid
+  salesOrderId  String   @db.Uuid
+  productId     String   @db.Uuid
+  productName   String
+  productSku    String
+  quantity      Decimal  @db.Decimal(12, 3)
+  unitPrice     Decimal  @db.Decimal(12, 2)
+  createdAt     DateTime @default(now())
+
+  salesOrder SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  product    Product    @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([salesOrderId])
+  @@index([productId])
+  @@map("sales_order_items")
 }
 
 model Role {
