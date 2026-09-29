@@ -5,11 +5,13 @@ import { Button } from "../ui/button";
 interface DashboardHeaderProps {
     title: string;
     description: string;
+    showActions?: boolean;
 }
 
 export function DashboardHeader({
     title,
     description,
+    showActions = false,
 }: DashboardHeaderProps) {
     const [now, setNow] = useState(new Date());
 
@@ -53,17 +55,19 @@ export function DashboardHeader({
                 </div>
             </div>
 
-            <div className="flex items-center gap-2">
-                <Button variant="outline">
-                    <Download />
-                    Export
-                </Button>
+            {showActions ? (
+                <div className="flex items-center gap-2">
+                    <Button variant="outline">
+                        <Download />
+                        Export
+                    </Button>
 
-                <Button variant="outline">
-                    <RefreshCw />
-                    Refresh
-                </Button>
-            </div>
+                    <Button variant="outline">
+                        <RefreshCw />
+                        Refresh
+                    </Button>
+                </div>
+            ) : null}
         </div>
     );
 }

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Activity,
   BarChart3,
@@ -190,6 +191,8 @@ function getStatusStyle(status: string) {
 }
 
 export function TSMDashboardPage() {
+  const [selectedPeriod, setSelectedPeriod] = useState("This week");
+
   return (
     <AppShell>
       <PageContainer>
@@ -197,23 +200,30 @@ export function TSMDashboardPage() {
           <DashboardHeader
             title="TSM Dashboard"
             description="Territory Leadership overview"
+            showActions
           />
 
           <div className="rounded-xl border bg-card p-4 shadow-sm">
             <div className="flex flex-wrap items-center gap-15">
-              {periods.map((period) => (
-                <button
-                  key={period}
-                  type="button"
-                  className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                    period === "This week"
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border bg-muted/20 text-muted-foreground hover:bg-muted/40"
-                  }`}
-                >
-                  {period}
-                </button>
-              ))}
+              {periods.map((period) => {
+                const isSelected = period === selectedPeriod;
+
+                return (
+                  <button
+                    key={period}
+                    type="button"
+                    aria-pressed={isSelected}
+                    onClick={() => setSelectedPeriod(period)}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                      isSelected
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-muted/20 text-muted-foreground hover:bg-muted/40"
+                    }`}
+                  >
+                    {period}
+                  </button>
+                );
+              })}
             </div>
 
             <div className="mt-4 grid gap-3 md:grid-cols-2">

@@ -38,6 +38,7 @@ interface AdminOverviewPageProps {
   highlights?: string[];
   sections?: AdminSection[];
   nextActions?: string[];
+  showActions?: boolean;
 }
 
 function AdminOverviewPage({
@@ -47,6 +48,7 @@ function AdminOverviewPage({
   highlights = [],
   sections,
   nextActions,
+  showActions = false,
 }: AdminOverviewPageProps) {
   const contentSections = sections && sections.length > 0 ? sections : [{ title: "Operational snapshot", items: highlights }];
   const actions = nextActions && nextActions.length > 0
@@ -62,7 +64,7 @@ function AdminOverviewPage({
     <AppShell>
       <PageContainer>
         <div className="space-y-6">
-          <DashboardHeader title={title} description={description} />
+          <DashboardHeader title={title} description={description} showActions={showActions} />
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {metrics.map((metric) => (
