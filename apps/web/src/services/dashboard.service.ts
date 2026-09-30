@@ -14,6 +14,25 @@ export interface AdminDashboardData {
     newOrganizations: number;
     userTrend: number[];
     organizationTrend: number[];
+    revenue: number;
+    currency: string;
+    orders: number;
+    averageOrderValue: number;
+    activeOutlets: number;
+    activeProducts: number;
+    itemsSold: number;
+    deliveredOrders: number;
+    cancelledOrders: number;
+    deliveryRate: number;
+    revenueTrend: number[];
+    orderTrend: number[];
+    productsByRevenue: Array<{
+        productId: string;
+        name: string;
+        category: string | null;
+        quantity: number;
+        revenue: number;
+    }>;
 }
 
 export async function getAdminDashboard(

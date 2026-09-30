@@ -43,6 +43,11 @@ function countByTimeBucket(records: { createdAt: Date }[], start: Date, end: Dat
     return buckets;
 }
 
+function getBucketIndex(date: Date, start: Date, end: Date, bucketCount: number) {
+    const position = (date.getTime() - start.getTime()) / Math.max(end.getTime() - start.getTime(), 1);
+    return Math.min(Math.floor(position * bucketCount), bucketCount - 1);
+}
+
 export async function getAdminDashboard(filters: DashboardFilters) {
     const now = new Date();
     const periodStart = getPeriodStart(filters.period, now);
@@ -60,6 +65,9 @@ export async function getAdminDashboard(filters: DashboardFilters) {
         memberships,
         newUsers,
         newOrganizations,
+        activeOutlets,
+        activeProducts,
+        salesOrders,
     ] = await Promise.all([
         prisma.user.count({ where: { status: "ACTIVE" } }),
         prisma.session.findMany({
@@ -85,7 +93,105 @@ export async function getAdminDashboard(filters: DashboardFilters) {
             where: { createdAt: createdAtFilter },
             select: { createdAt: true },
         }),
+        prisma.outlet.count({
+            where: {
+                isActive: true,
+                ...(filters.distributorId ? { distributorId: filters.distributorId } : {}),
+                ...(filters.territoryId || filters.regionId ? {
+                    distributor: {
+                        ...(filters.territoryId ? { territoryId: filters.territoryId } : {}),
+                        ...(filters.regionId ? { territory: { regionId: filters.regionId } } : {}),
+                    },
+                } : {}),
+            },
+        }),
+        prisma.product.count({ where: { isActive: true } }),
+        prisma.salesOrder.findMany({
+            where: {
+                orderDate: createdAtFilter,
+                status: { not: "DRAFT" },
+                currency: "KES",
+                ...(filters.distributorId ? { distributorId: filters.distributorId } : {}),
+                ...(filters.territoryId || filters.regionId ? {
+                    distributor: {
+                        ...(filters.territoryId ? { territoryId: filters.territoryId } : {}),
+                        ...(filters.regionId ? { territory: { regionId: filters.regionId } } : {}),
+                    },
+                } : {}),
+                ...(filters.asrId ? { createdById: filters.asrId } : {}),
+            },
+            select: {
+                orderDate: true,
+                status: true,
+                currency: true,
+                items: {
+                    select: {
+                        productId: true,
+                        productName: true,
+                        productSku: true,
+                        quantity: true,
+                        unitPrice: true,
+                        product: { select: { category: true } },
+                    },
+                },
+            },
+        }),
     ]);
+
+    const bucketCount = 12;
+    const revenueTrend = Array.from({ length: bucketCount }, () => 0);
+    const orderTrend = Array.from({ length: bucketCount }, () => 0);
+    const productTotals = new Map<string, { name: string; category: string | null; quantity: number; revenue: number }>();
+    let revenue = 0;
+    let orderCount = 0;
+    let deliveredOrders = 0;
+    let cancelledOrders = 0;
+    let itemsSold = 0;
+
+    for (const order of salesOrders) {
+        if (order.status === "CANCELLED") {
+            cancelledOrders += 1;
+            continue;
+        }
+
+        if (order.status === "DRAFT") {
+            continue;
+        }
+
+        orderCount += 1;
+        if (order.status === "DELIVERED") {
+            deliveredOrders += 1;
+        }
+
+        const bucketIndex = getBucketIndex(order.orderDate, periodStart, now, bucketCount);
+        orderTrend[bucketIndex] += 1;
+
+        for (const item of order.items) {
+            const quantity = Number(item.quantity);
+            const lineRevenue = quantity * Number(item.unitPrice);
+            itemsSold += quantity;
+
+            if (order.currency === "KES") {
+                revenue += lineRevenue;
+                revenueTrend[bucketIndex] += lineRevenue;
+            }
+
+            const existing = productTotals.get(item.productId) ?? {
+                name: item.productName,
+                category: item.product.category,
+                quantity: 0,
+                revenue: 0,
+            };
+            existing.quantity += quantity;
+            if (order.currency === "KES") {
+                existing.revenue += lineRevenue;
+            }
+            productTotals.set(item.productId, existing);
+        }
+    }
+
+    const averageOrderValue = orderCount > 0 ? revenue / orderCount : 0;
+    const deliveryRate = orderCount > 0 ? (deliveredOrders / orderCount) * 100 : 0;
 
     return {
         users,
@@ -100,5 +206,21 @@ export async function getAdminDashboard(filters: DashboardFilters) {
         newOrganizations: newOrganizations.length,
         userTrend: countByTimeBucket(newUsers, periodStart, now),
         organizationTrend: countByTimeBucket(newOrganizations, periodStart, now),
+        revenue,
+        currency: "KES",
+        orders: orderCount,
+        averageOrderValue,
+        activeOutlets,
+        activeProducts,
+        itemsSold,
+        deliveredOrders,
+        cancelledOrders,
+        deliveryRate,
+        revenueTrend,
+        orderTrend,
+        productsByRevenue: [...productTotals.entries()]
+            .map(([productId, product]) => ({ productId, ...product }))
+            .sort((left, right) => right.revenue - left.revenue)
+            .slice(0, 5),
     };
 }
