@@ -2,7 +2,7 @@ import { Router } from "express";
 
 import { authenticate } from "../auth/auth.middleware.js"
 import { requirePermission } from "../auth/authorization.js";
-import { getAdminDashboard } from "./dashboard.service.js";
+import { getAdminDashboard, getAsrDashboard } from "./dashboard.service.js";
 
 import { z } from "zod";
 
@@ -30,6 +30,32 @@ const dashboardFilterSchema = z.object({
 
     asrId: z.string().uuid().optional(),
 });
+
+const asrDashboardPeriodSchema = z.enum([
+    "TODAY",
+    "YESTERDAY",
+    "THIS_WEEK",
+    "LAST_WEEK",
+    "TWO_WEEKS_BACK",
+    "THIS_MONTH",
+    "ALL",
+]).default("TODAY");
+
+router.get(
+    "/asr",
+    authenticate,
+    requirePermission("dashboard.view"),
+    async (req, res, next) => {
+        try {
+            const period = asrDashboardPeriodSchema.parse(req.query.period);
+            const dashboard = await getAsrDashboard(period);
+
+            return res.json({ data: dashboard });
+        } catch (error) {
+            next(error);
+        }
+    },
+);
 
 router.get(
     "/admin",

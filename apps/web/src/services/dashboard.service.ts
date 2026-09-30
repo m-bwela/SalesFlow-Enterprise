@@ -35,6 +35,57 @@ export interface AdminDashboardData {
     }>;
 }
 
+export type AsrDashboardPeriod =
+    | "TODAY"
+    | "YESTERDAY"
+    | "THIS_WEEK"
+    | "LAST_WEEK"
+    | "TWO_WEEKS_BACK"
+    | "THIS_MONTH"
+    | "ALL";
+
+export interface AsrDashboardData {
+    period: AsrDashboardPeriod;
+    totalAsrs: number;
+    activeAsrs: number;
+    onlineNow: number;
+    suspendedAsrs: number;
+    revenue: number;
+    sellingAsrs: number;
+    visitingAsrs: number | null;
+    averageRevenuePerAsr: number;
+    currency: string;
+    revenueTrend: number[];
+    ordersTrend: number[];
+    asrs: Array<{
+        id: string;
+        name: string;
+        email: string;
+        phoneNumber: string | null;
+        profileImageUrl: string | null;
+        status: string;
+        online: boolean;
+        region: string | null;
+        territory: string | null;
+        distributor: string | null;
+        revenue: number;
+        orders: number;
+        cratesSold: number;
+        rating: number | null;
+        visits: number | null;
+        coolers: number | null;
+        newOutlets: number | null;
+    }>;
+}
+
+export async function getAsrDashboard(period: AsrDashboardPeriod) {
+    const response = await apiFetch<{ data: AsrDashboardData }>(
+        `/api/v1/dashboard/asr?period=${encodeURIComponent(period)}`,
+    );
+
+    return response.data;
+}
+
 export async function getAdminDashboard(
     filters?: DashboardFilters,
 ) {

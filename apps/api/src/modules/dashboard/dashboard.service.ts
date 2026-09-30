@@ -1,6 +1,6 @@
 import { prisma } from "@salesflow/database";
 
-import type { DashboardFilters } from "./dashboard.types.js";
+import type { AsrDashboardPeriod, DashboardFilters } from "./dashboard.types.js";
 
 const PERIOD_DURATIONS: Record<DashboardFilters["period"], number> = {
     LIVE: 5 * 60 * 1000,
@@ -222,5 +222,194 @@ export async function getAdminDashboard(filters: DashboardFilters) {
             .map(([productId, product]) => ({ productId, ...product }))
             .sort((left, right) => right.revenue - left.revenue)
             .slice(0, 5),
+    };
+}
+
+function getAsrPeriodRange(period: AsrDashboardPeriod, now: Date) {
+    const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const dayMs = 24 * 60 * 60 * 1000;
+    const weekStart = new Date(todayStart);
+    weekStart.setUTCDate(weekStart.getUTCDate() - ((weekStart.getUTCDay() + 6) % 7));
+    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+
+    switch (period) {
+        case "TODAY":
+            return { start: todayStart, end: now };
+        case "YESTERDAY":
+            return { start: new Date(todayStart.getTime() - dayMs), end: todayStart };
+        case "THIS_WEEK":
+            return { start: weekStart, end: now };
+        case "LAST_WEEK":
+            return { start: new Date(weekStart.getTime() - 7 * dayMs), end: weekStart };
+        case "TWO_WEEKS_BACK":
+            return { start: new Date(weekStart.getTime() - 14 * dayMs), end: new Date(weekStart.getTime() - 7 * dayMs) };
+        case "THIS_MONTH":
+            return { start: monthStart, end: now };
+        case "ALL":
+            return { start: new Date(0), end: now };
+    }
+}
+
+export async function getAsrDashboard(period: AsrDashboardPeriod) {
+    const now = new Date();
+    const { start, end } = getAsrPeriodRange(period, now);
+    const activeSince = new Date(now.getTime() - 5 * 60 * 1000);
+    const assignments = await prisma.membershipRole.findMany({
+        where: {
+            role: { code: "ASR" },
+            membership: { isActive: true },
+            startsAt: { lte: now },
+            OR: [{ endsAt: null }, { endsAt: { gt: now } }],
+        },
+        orderBy: [{ isActive: "desc" }, { startsAt: "desc" }],
+        select: {
+            isActive: true,
+            regionId: true,
+            territoryId: true,
+            distributorId: true,
+            membership: {
+                select: {
+                    user: {
+                        select: {
+                            id: true,
+                            displayName: true,
+                            email: true,
+                            phoneNumber: true,
+                            profileImageUrl: true,
+                            status: true,
+                        },
+                    },
+                },
+            },
+        },
+    });
+
+    const assignmentByUser = new Map<string, (typeof assignments)[number]>();
+    for (const assignment of assignments) {
+        const userId = assignment.membership.user.id;
+        if (!assignmentByUser.has(userId)) {
+            assignmentByUser.set(userId, assignment);
+        }
+    }
+
+    const userIds = [...assignmentByUser.keys()];
+    const regionIds = [...new Set(assignments.flatMap(({ regionId }) => regionId ? [regionId] : []))];
+    const territoryIds = [...new Set(assignments.flatMap(({ territoryId }) => territoryId ? [territoryId] : []))];
+    const distributorIds = [...new Set(assignments.flatMap(({ distributorId }) => distributorId ? [distributorId] : []))];
+
+    const [onlineSessions, regions, territories, distributors, orders] = await Promise.all([
+        userIds.length
+            ? prisma.session.findMany({
+                where: {
+                    userId: { in: userIds },
+                    revokedAt: null,
+                    expiresAt: { gt: now },
+                    lastSeenAt: { gte: activeSince },
+                },
+                select: { userId: true },
+                distinct: ["userId"],
+            })
+            : Promise.resolve([]),
+        regionIds.length ? prisma.region.findMany({ where: { id: { in: regionIds } }, select: { id: true, name: true } }) : Promise.resolve([]),
+        territoryIds.length ? prisma.territory.findMany({ where: { id: { in: territoryIds } }, select: { id: true, name: true } }) : Promise.resolve([]),
+        distributorIds.length ? prisma.distributor.findMany({ where: { id: { in: distributorIds } }, select: { id: true, name: true } }) : Promise.resolve([]),
+        userIds.length
+            ? prisma.salesOrder.findMany({
+                where: {
+                    createdById: { in: userIds },
+                    currency: "KES",
+                    status: { notIn: ["DRAFT", "CANCELLED"] },
+                    orderDate: { gte: start, lt: end },
+                },
+                select: {
+                    createdById: true,
+                    orderDate: true,
+                    items: {
+                        select: {
+                            quantity: true,
+                            unitPrice: true,
+                            product: { select: { unitOfMeasure: true } },
+                        },
+                    },
+                },
+            })
+            : Promise.resolve([]),
+    ]);
+
+    const regionNames = new Map(regions.map(({ id, name }) => [id, name]));
+    const territoryNames = new Map(territories.map(({ id, name }) => [id, name]));
+    const distributorNames = new Map(distributors.map(({ id, name }) => [id, name]));
+    const onlineUserIds = new Set(onlineSessions.map(({ userId }) => userId));
+    const salesByUser = new Map<string, { revenue: number; orders: number; crates: number }>();
+    const revenueTrend = Array.from({ length: 12 }, () => 0);
+    const ordersTrend = Array.from({ length: 12 }, () => 0);
+    let revenue = 0;
+
+    for (const order of orders) {
+        const sales = salesByUser.get(order.createdById) ?? { revenue: 0, orders: 0, crates: 0 };
+        sales.orders += 1;
+        const bucketIndex = Math.min(
+            Math.floor(((order.orderDate.getTime() - start.getTime()) / Math.max(end.getTime() - start.getTime(), 1)) * 12),
+            11,
+        );
+        ordersTrend[bucketIndex] += 1;
+
+        for (const item of order.items) {
+            const quantity = Number(item.quantity);
+            const lineRevenue = quantity * Number(item.unitPrice);
+            sales.revenue += lineRevenue;
+            revenue += lineRevenue;
+            if (item.product.unitOfMeasure.toLowerCase().includes("crate")) {
+                sales.crates += quantity;
+            }
+            revenueTrend[bucketIndex] += lineRevenue;
+        }
+
+        salesByUser.set(order.createdById, sales);
+    }
+
+    const asrs = [...assignmentByUser.entries()].map(([userId, assignment]) => {
+        const user = assignment.membership.user;
+        const sales = salesByUser.get(userId) ?? { revenue: 0, orders: 0, crates: 0 };
+        const active = user.status === "ACTIVE" && assignment.isActive;
+
+        return {
+            id: user.id,
+            name: user.displayName,
+            email: user.email,
+            phoneNumber: user.phoneNumber,
+            profileImageUrl: user.profileImageUrl,
+            status: user.status === "SUSPENDED" ? "Suspended" : active ? "Active" : "Inactive",
+            online: onlineUserIds.has(userId),
+            region: assignment.regionId ? regionNames.get(assignment.regionId) ?? null : null,
+            territory: assignment.territoryId ? territoryNames.get(assignment.territoryId) ?? null : null,
+            distributor: assignment.distributorId ? distributorNames.get(assignment.distributorId) ?? null : null,
+            revenue: sales.revenue,
+            orders: sales.orders,
+            cratesSold: sales.crates,
+            rating: null,
+            visits: null,
+            coolers: null,
+            newOutlets: null,
+        };
+    }).sort((left, right) => right.revenue - left.revenue || left.name.localeCompare(right.name));
+
+    const activeAsrs = asrs.filter((asr) => asr.status === "Active").length;
+    const sellingAsrs = asrs.filter((asr) => asr.orders > 0).length;
+
+    return {
+        period,
+        totalAsrs: asrs.length,
+        activeAsrs,
+        onlineNow: asrs.filter((asr) => asr.online).length,
+        suspendedAsrs: asrs.filter((asr) => asr.status === "Suspended").length,
+        revenue,
+        sellingAsrs,
+        visitingAsrs: null,
+        averageRevenuePerAsr: activeAsrs ? revenue / activeAsrs : 0,
+        currency: "KES",
+        revenueTrend,
+        ordersTrend,
+        asrs,
     };
 }

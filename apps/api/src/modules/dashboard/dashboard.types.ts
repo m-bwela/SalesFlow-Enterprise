@@ -15,3 +15,12 @@ export interface DashboardFilters {
     distributorId?: string;
     asrId?: string;
 }
+
+export type AsrDashboardPeriod =
+    | "TODAY"
+    | "YESTERDAY"
+    | "THIS_WEEK"
+    | "LAST_WEEK"
+    | "TWO_WEEKS_BACK"
+    | "THIS_MONTH"
+    | "ALL";

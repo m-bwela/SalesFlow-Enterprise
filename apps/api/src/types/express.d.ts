@@ -1,6 +1,9 @@
 import type { Session, User } from "@prisma/client";
 
-type AuthUser = Omit<User, "passwordHash">;
+type AuthUser = Pick<
+    User,
+    "id" | "email" | "displayName" | "status" | "emailVerifiedAt" | "createdAt" | "updatedAt"
+>;
 type AuthSession = Pick<Session, "id" | "userId" | "expiresAt" | "revokedAt"> & {
     user: AuthUser;
 };
