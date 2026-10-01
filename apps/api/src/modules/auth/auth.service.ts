@@ -7,6 +7,7 @@ import { ConflictError } from "../../errors/conflict-error.js";
 import { AppError } from "../../errors/app-error.js";
 
 import { sessionService } from "./session.service.js";
+import { recordLoginAttempt, registerFailedLogin } from "../users/user.service.js";
 
 export class AuthService {
     async register(input: RegisterInput) {
@@ -54,7 +55,13 @@ export class AuthService {
         });
 
         if (!user || !user.passwordHash) {
+            await recordLoginAttempt(email, user?.id ?? null, false, undefined);
             throw new AppError("INVALID_CREDENTIALS", 401, "Invalid email or password.");
+        }
+
+        if (user.lockedUntil && user.lockedUntil > new Date()) {
+            await recordLoginAttempt(email, user.id, false, undefined);
+            throw new AppError("ACCOUNT_LOCKED", 423, "This account is temporarily locked. Contact an administrator.");
         }
 
         const isPasswordValid = await argon2.verify(
@@ -63,14 +70,18 @@ export class AuthService {
         );
 
         if (!isPasswordValid) {
+            await registerFailedLogin(user.id, email, undefined);
             throw new AppError("INVALID_CREDENTIALS", 401, "Invalid email or password.");
         }
 
         if(user.status !== "ACTIVE") {
+            await recordLoginAttempt(email, user.id, false, undefined);
             throw new AppError("ACCOUNT_UNAVAILABLE", 403, "This account is not available.");
         }
 
         const session = await sessionService.create(user.id);
+        await prisma.user.update({ where: { id: user.id }, data: { lockedUntil: null } });
+        await recordLoginAttempt(email, user.id, true, undefined);
 
         return {
             user: {

@@ -33,7 +33,7 @@ import { WarehousesPage } from "./pages/admin/WarehousesPage";
 import { RegionsPage } from "./pages/admin/RegionsPage";
 import { TerritoriesPage } from "./pages/admin/TerritoriesPage";
 import { DistributorsPage } from "./pages/admin/DistributorsPage";
-import { UsersPage } from "./pages/admin/UsersPage";
+import { UserManagementPage } from "./pages/admin/UserManagement";
 import { RolesPage } from "./pages/admin/RolesPage";
 
 function PageShell({ title, children }: { title: string; children?: ReactNode }) {
@@ -80,7 +80,7 @@ function App() {
         <Route path="/register" element={<RegisterPage />} />
 
         <Route element={<ProtectedRoute />}>
-          <Route path="/admin" element={<RoleRoute allowedRoles={["ADMIN"]} />}>
+          <Route path="/admin" element={<RoleRoute allowedRoles={["ADMIN", "SUPER_ADMIN"]} />}>
             <Route index element={<AdminDashboard />} />
             <Route path="sales-dashboard" element={<SalesDashboardPage />} />
             <Route path="performance" element={<PerformancePage />} />
@@ -98,7 +98,7 @@ function App() {
             <Route path="territories" element={<TerritoriesPage />} />
             <Route path="distributors" element={<DistributorsPage />} />
             <Route path="warehouses" element={<WarehousesPage />} />
-            <Route path="users" element={<UsersPage />} />
+            <Route path="users" element={<UserManagementPage />} />
             <Route path="roles" element={<RolesPage />} />
             <Route path="asr-management" element={<ASRManagementPage />} />
             <Route path="online-users" element={<OnlineUsersPage />} />
@@ -129,6 +129,16 @@ function App() {
           <Route path="/asr" element={<RoleRoute allowedRoles={["ASR"]} />}>
             <Route index element={<ASRDashboard />} />
           </Route>
+
+            <Route path="/distributor" element={<RoleRoute allowedRoles={["DISTRIBUTOR"]} />}>
+              <Route index element={<PageShell title="Distributor Portal" />} />
+            </Route>
+            <Route path="/horeca" element={<RoleRoute allowedRoles={["HORECA"]} />}>
+              <Route index element={<PageShell title="Horeca Portal" />} />
+            </Route>
+            <Route path="/support" element={<RoleRoute allowedRoles={["SUPPORT"]} />}>
+              <Route index element={<PageShell title="Support Portal" />} />
+            </Route>
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

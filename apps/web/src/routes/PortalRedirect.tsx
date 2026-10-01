@@ -19,7 +19,7 @@ export function PortalRedirect() {
 
     const roleCodes = auth.roles.map((role) => role.code);
 
-    if (roleCodes.includes("ADMIN")) {
+    if (roleCodes.includes("ADMIN") || roleCodes.includes("SUPER_ADMIN")) {
         return <Navigate to="/admin" replace />;
     }
 
@@ -37,6 +37,18 @@ export function PortalRedirect() {
 
     if (roleCodes.includes("ASR")) {
         return <Navigate to="/asr" replace />;
+    }
+
+    if (roleCodes.includes("DISTRIBUTOR")) {
+        return <Navigate to="/distributor" replace />;
+    }
+
+    if (roleCodes.includes("HORECA")) {
+        return <Navigate to="/horeca" replace />;
+    }
+
+    if (roleCodes.includes("SUPPORT")) {
+        return <Navigate to="/support" replace />;
     }
     
     // Default redirect if no roles match

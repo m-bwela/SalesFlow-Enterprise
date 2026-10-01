@@ -30,6 +30,7 @@ export const authenticate: RequestHandler = async (req, res, next) => {
                 userId: true,
                 expiresAt: true,
                 revokedAt: true,
+                lastSeenAt: true,
                 user: {
                     select: {
                         id: true,
@@ -39,12 +40,20 @@ export const authenticate: RequestHandler = async (req, res, next) => {
                         emailVerifiedAt: true,
                         createdAt: true,
                         updatedAt: true,
+                        lockedUntil: true,
                     },
                 },
             },
         });
 
-        if (!session || session.revokedAt || session.expiresAt <= new Date()) {
+        const now = new Date();
+        if (
+            !session ||
+            session.revokedAt ||
+            session.expiresAt <= now ||
+            session.user.status !== "ACTIVE" ||
+            Boolean(session.user.lockedUntil && session.user.lockedUntil > now)
+        ) {
             res.status(401).json({
                 error: {
                     code: 'UNAUTHENTICATED',
@@ -56,6 +65,12 @@ export const authenticate: RequestHandler = async (req, res, next) => {
         }
 
         const user = session.user;
+        if (!session.lastSeenAt || now.getTime() - session.lastSeenAt.getTime() >= 60_000) {
+            await prisma.session.update({
+                where: { id: session.id },
+                data: { lastSeenAt: now },
+            });
+        }
         const authSession = {
             id: session.id,
             userId: session.userId,

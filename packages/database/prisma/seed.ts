@@ -6,11 +6,15 @@ const prisma = new PrismaClient();
 
 enum RoleCode {
     ADMIN = 'ADMIN',
+    SUPER_ADMIN = 'SUPER_ADMIN',
     RSM = 'RSM',
     GT_TSM = 'GT_TSM',
     MT_TSM = 'MT_TSM',
     MTSR = 'MTSR',
     ASR = 'ASR',
+    DISTRIBUTOR = 'DISTRIBUTOR',
+    HORECA = 'HORECA',
+    SUPPORT = 'SUPPORT',
 }
 
 const roles = [
@@ -18,6 +22,11 @@ const roles = [
         code: RoleCode.ADMIN,
         name: 'Admin',
         description: 'System-wide administration and configuration'
+    },
+    {
+        code: RoleCode.SUPER_ADMIN,
+        name: 'Super Admin',
+        description: 'Full system administration and role assignment',
     },
     {
         code: RoleCode.RSM,
@@ -43,6 +52,21 @@ const roles = [
         code: RoleCode.ASR,
         name: 'Area Sales Representative',
         description: 'Executes field sales activities within an assigned distributor scope',
+    },
+    {
+        code: RoleCode.DISTRIBUTOR,
+        name: 'Distributor',
+        description: 'Manages distributor operations within an assigned distributor scope',
+    },
+    {
+        code: RoleCode.HORECA,
+        name: 'Horeca',
+        description: 'Executes hospitality-channel sales within an assigned distributor scope',
+    },
+    {
+        code: RoleCode.SUPPORT,
+        name: 'Support',
+        description: 'Provides read-only operational support',
     },
 ];
 
@@ -126,6 +150,8 @@ async function main() {
     const rolePermissionMap: Record<RoleCode, string[]> = {
         [RoleCode.ADMIN]:
         permissions.map(([code]) => code),
+
+        [RoleCode.SUPER_ADMIN]: permissions.map(([code]) => code),
 
         [RoleCode.RSM]: [
             "dashboard.view",
@@ -211,6 +237,31 @@ async function main() {
             "tasks.manage",
             "leaves.view",
             "workflow.view",
+        ],
+
+        [RoleCode.DISTRIBUTOR]: [
+            "dashboard.view",
+            "organization.view",
+            "outlets.view",
+            "sales.view",
+            "inventory.view",
+            "reports.view",
+        ],
+
+        [RoleCode.HORECA]: [
+            "dashboard.view",
+            "organization.view",
+            "outlets.view",
+            "sales.view",
+            "sales.create",
+            "sales.update",
+            "reports.view",
+        ],
+
+        [RoleCode.SUPPORT]: [
+            "dashboard.view",
+            "users.view",
+            "audit.view",
         ],
     };
 
@@ -478,6 +529,30 @@ async function main() {
         create: {
             membershipId: adminMembership.id,
             roleId: adminRole.id,
+            scopeType: ScopeType.GLOBAL,
+            isActive: true,
+        },
+    });
+
+    const superAdminRole = await prisma.role.findUniqueOrThrow({
+        where: { code: RoleCode.SUPER_ADMIN },
+    });
+
+    await prisma.membershipRole.upsert({
+        where: {
+            membershipId_roleId: {
+                membershipId: adminMembership.id,
+                roleId: superAdminRole.id,
+            },
+        },
+        update: {
+            scopeType: ScopeType.GLOBAL,
+            isActive: true,
+            endsAt: null,
+        },
+        create: {
+            membershipId: adminMembership.id,
+            roleId: superAdminRole.id,
             scopeType: ScopeType.GLOBAL,
             isActive: true,
         },

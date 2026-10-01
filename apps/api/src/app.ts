@@ -9,6 +9,7 @@ import cookieParser from "cookie-parser";
 import { notFound } from "./middleware/not-found.js";
 import dashboardRoutes from "./modules/dashboard/dashboard.routes.js";
 import organizationRoutes from "./modules/organization/organization.routes.js";
+import userRoutes from "./modules/users/user.routes.js";
 
 export const app = express();
 
@@ -18,12 +19,16 @@ const allowedOrigins = [
     process.env.CLIENT_URL,
 ].filter(Boolean) as string[];
 
+function isAllowedOrigin(origin: string) {
+    return allowedOrigins.includes(origin) || /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
+}
+
 app.disable("x-powered-by");
 app.use(helmet());
 app.use(
     cors({
         origin: (origin, callback) => {
-            if (!origin || allowedOrigins.includes(origin)) {
+            if (!origin || isAllowedOrigin(origin)) {
                 callback(null, true);
                 return;
             }
@@ -41,5 +46,6 @@ app.use("/health", healthRouter);
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/dashboard", dashboardRoutes);
 app.use("/api/v1/organization", organizationRoutes);
+app.use("/api/v1/users", userRoutes);
 app.use(notFound);
 app.use(errorhandler);

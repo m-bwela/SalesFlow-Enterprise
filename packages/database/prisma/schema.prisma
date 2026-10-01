@@ -13,6 +13,7 @@ enum UserStatus {
   ACTIVE
   SUSPENDED
   DISABLED
+  ARCHIVED
 }
 
 enum OrganizationStatus {
@@ -45,11 +46,15 @@ enum SalesOrderStatus {
 
 enum RoleCode {
   ADMIN
+  SUPER_ADMIN
   RSM
   GT_TSM
   MT_TSM
   MTSR
   ASR
+  DISTRIBUTOR
+  HORECA
+  SUPPORT
 }
 
 enum ScopeType {
@@ -66,8 +71,19 @@ model User {
   id              String     @id @default(uuid()) @db.Uuid
   email           String     @unique
   displayName     String
+  firstName       String?
+  surname         String?
   phoneNumber     String?
   profileImageUrl String?
+  departmentId    String?    @db.Uuid
+  transportType   String?
+  homeRegion      String?
+  city            String?
+  streetName      String?
+  blockNumber     String?
+  nationalIdFrontPath String?
+  nationalIdBackPath  String?
+  lockedUntil     DateTime?
   passwordHash    String?
   status          UserStatus @default(ACTIVE)
   emailVerifiedAt DateTime?
@@ -79,9 +95,14 @@ model User {
   createdDocuments Document[]   @relation("DocumentCreatedBy")
   ownedDocuments   Document[]   @relation("DocumentOwner")
   createdSalesOrders SalesOrder[] @relation("SalesOrderCreatedBy")
+  loginAttempts   LoginAttempt[]
+  updatedShiftSettings AsrShiftSetting[] @relation("AsrShiftUpdatedBy")
+  department      Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   auditLogs        AuditLog[]   @relation("AuditActor")
 
   @@index([status])
+  @@index([departmentId])
+  @@index([lockedUntil])
   @@map("users")
 }
 
@@ -161,9 +182,58 @@ model Organization {
   products    Product[]
   outlets     Outlet[]
   salesOrders SalesOrder[]
+  departments Department[]
+  asrShiftSetting AsrShiftSetting?
   auditLogs   AuditLog[]
 
   @@map("organizations")
+}
+
+model Department {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  name           String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  users        User[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@map("departments")
+}
+
+model LoginAttempt {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String?  @db.Uuid
+  email      String
+  successful Boolean  @default(false)
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([email, createdAt])
+  @@index([successful, createdAt])
+  @@map("login_attempts")
+}
+
+model AsrShiftSetting {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @unique @db.Uuid
+  closeStart     String   @default("23:00")
+  closeEnd       String   @default("05:30")
+  reopenAt       String   @default("06:00")
+  updatedById    String?  @db.Uuid
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  updatedBy    User?        @relation("AsrShiftUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("asr_shift_settings")
 }
 
 model Region {

@@ -15,6 +15,7 @@ export class SessionService {
                 userId,
                 tokenHash,
                 expiresAt,
+                lastSeenAt: new Date(),
             },
             select: {
                 id: true,

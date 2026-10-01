@@ -1,10 +1,14 @@
 export type RoleCode =
     | "ADMIN"
+    | "SUPER_ADMIN"
     | "RSM"
     | "GT_TSM"
     | "MT_TSM"
     | "MTSR"
-    | "ASR";
+    | "ASR"
+    | "DISTRIBUTOR"
+    | "HORECA"
+    | "SUPPORT";
 
 export type ScopeType =
     | "GLOBAL"

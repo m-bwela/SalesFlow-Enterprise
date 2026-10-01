@@ -3,7 +3,7 @@ import { z } from "zod";
 export const registerSchema = z.object({
     email: z.string().email(),
     displayName: z.string().trim().min(2).max(100),
-    password: z.string().trim().min(8).max(128),
+    password: z.string().min(8).max(128).regex(/^[A-Z]/, "Password must start with a capital letter."),
 });
 
 export const loginSchema = z.object({
