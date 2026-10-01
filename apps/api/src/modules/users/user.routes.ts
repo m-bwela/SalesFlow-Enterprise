@@ -25,8 +25,8 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024, files: 2 },
   fileFilter: (_req, file, callback) => {
-    if (["image/jpeg", "image/png"].includes(file.mimetype)) callback(null, true);
-    else callback(new AppError("INVALID_ID_IMAGE", 400, "ID images must be JPEG or PNG files."));
+    if (["image/jpeg", "image/png", "image/pdf"].includes(file.mimetype)) callback(null, true);
+    else callback(new AppError("INVALID_ID_IMAGE", 400, "ID images must be JPEG, PNG, or PDF files."));
   },
 });
 
