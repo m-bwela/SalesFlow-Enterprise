@@ -81,7 +81,7 @@ export function LoginForm({
                     <Input
                       id="email"
                       type="email"
-                      placeholder="m@example.com"
+                      placeholder="me@example.com"
                       value={email}
                       onChange={(event) => setEmail(event.target.value)}
                       className="border-[#d9b36a]/20 bg-[#0b1117]/80 text-[#fffaf0] placeholder:text-[#a89b7c]"
