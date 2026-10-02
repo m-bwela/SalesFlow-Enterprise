@@ -35,6 +35,60 @@ export interface AdminDashboardData {
     }>;
 }
 
+export type OutletDashboardPeriod = "1D" | "1W" | "1M" | "3M" | "6M" | "YTD" | "1Y" | "ALL";
+
+export interface OutletDashboardRow {
+    id: string;
+    name: string;
+    code: string;
+    type: "SHOP" | "RESTAURANT" | "KIOSK" | "BAR" | "OTHER";
+    phone: string | null;
+    imageUrl: string | null;
+    region: string;
+    territory: string;
+    distributor: string;
+    createdBy: string;
+    revenue: number;
+    orders: number;
+    coolerCount: number;
+    trend: "UP" | "DOWN" | "FLAT" | null;
+}
+
+export interface OutletDashboardData {
+    period: OutletDashboardPeriod;
+    updatedAt: string;
+    currency: string;
+    stats: {
+        totalOutlets: number;
+        withCoolers: number;
+        withoutCoolers: number;
+        revenue: number;
+        orders: number;
+        volume: number;
+        averageRevenuePerOutlet: number;
+        shops: number;
+        restaurants: number;
+        kiosks: number;
+        bars: number;
+        other: number;
+    };
+    revenueTrend: number[];
+    topTen: OutletDashboardRow[];
+    bottomTen: OutletDashboardRow[];
+    revenueByType: Array<{ type: string; value: number }>;
+    revenueByPaymentMethod: Array<{ method: string; value: number }>;
+    coolerRevenueRisk: Array<{ label: string; value: number }>;
+    lowOrderCounts: Array<{ label: string; value: number }>;
+    outlets: OutletDashboardRow[];
+}
+
+export async function getOutletDashboard(period: OutletDashboardPeriod) {
+    const response = await apiFetch<{ data: OutletDashboardData }>(
+        `/api/v1/dashboard/outlets?period=${encodeURIComponent(period)}`,
+    );
+    return response.data;
+}
+
 export type AsrDashboardPeriod =
     | "TODAY"
     | "YESTERDAY"

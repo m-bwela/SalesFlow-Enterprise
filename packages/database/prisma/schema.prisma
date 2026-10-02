@@ -342,6 +342,7 @@ model Outlet {
   name           String
   type           OutletType @default(OTHER)
   address        String?
+  phoneNumber    String?
   imageUrl       String?
   coolerCount    Int        @default(0)
   createdById    String?    @db.Uuid

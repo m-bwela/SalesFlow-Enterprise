@@ -684,3 +684,189 @@ export async function getAsrDashboard(period: AsrDashboardPeriod) {
         asrs,
     };
 }
+
+export async function getOutletDashboard(organizationId: string, filters: Pick<DashboardFilters, "period">) {
+    const now = new Date();
+    const periodStart = getPeriodStart(filters.period, now);
+    const previousDuration = now.getTime() - periodStart.getTime();
+    const previousStart = filters.period === "ALL"
+        ? null
+        : new Date(periodStart.getTime() - previousDuration);
+    const lastMonthStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const outlets = await prisma.outlet.findMany({
+        where: { organizationId, isActive: true },
+        take: 1000,
+        orderBy: { name: "asc" },
+        select: {
+            id: true,
+            code: true,
+            name: true,
+            type: true,
+            phoneNumber: true,
+            imageUrl: true,
+            coolerCount: true,
+            createdAt: true,
+            createdBy: { select: { displayName: true } },
+            distributor: {
+                select: {
+                    id: true,
+                    name: true,
+                    territory: {
+                        select: {
+                            id: true,
+                            name: true,
+                            region: { select: { name: true } },
+                        },
+                    },
+                },
+            },
+        },
+    });
+
+    const outletIds = outlets.map(({ id }) => id);
+    const [periodOrders, previousOrders, lastMonthOrders] = outletIds.length
+        ? await Promise.all([
+            prisma.salesOrder.findMany({
+                where: {
+                    organizationId,
+                    outletId: { in: outletIds },
+                    orderDate: { gte: periodStart, lte: now },
+                    currency: "KES",
+                    status: { notIn: ["DRAFT", "CANCELLED"] },
+                },
+                select: {
+                    outletId: true,
+                    orderDate: true,
+                    paymentMethod: true,
+                    items: { select: { quantity: true, unitPrice: true } },
+                },
+            }),
+            previousStart
+                ? prisma.salesOrder.findMany({
+                    where: {
+                        outletId: { in: outletIds },
+                        orderDate: { gte: previousStart, lt: periodStart },
+                        currency: "KES",
+                        status: { notIn: ["DRAFT", "CANCELLED"] },
+                    },
+                    select: { outletId: true, items: { select: { quantity: true, unitPrice: true } } },
+                })
+                : Promise.resolve([]),
+            prisma.salesOrder.findMany({
+                where: {
+                    outletId: { in: outletIds },
+                    orderDate: { gte: lastMonthStart, lte: now },
+                    currency: "KES",
+                    status: { notIn: ["DRAFT", "CANCELLED"] },
+                },
+                select: { outletId: true, items: { select: { quantity: true, unitPrice: true } } },
+            }),
+        ])
+        : [[], [], []];
+
+    const outletById = new Map(outlets.map((outlet) => [outlet.id, outlet]));
+    const revenueByOutlet = new Map<string, number>();
+    const previousRevenueByOutlet = new Map<string, number>();
+    const monthlyRevenueByOutlet = new Map<string, number>();
+    const orderCountByOutlet = new Map<string, number>();
+    const revenueByType = new Map<string, number>();
+    const revenueByPaymentMethod = new Map<string, number>();
+    const revenueTrend = Array.from({ length: 12 }, () => 0);
+    let revenue = 0;
+    let orderCount = 0;
+    let volume = 0;
+
+    for (const order of periodOrders) {
+        const lineRevenue = order.items.reduce((total, item) => {
+            const itemQuantity = Number(item.quantity);
+            volume += itemQuantity;
+            return total + itemQuantity * Number(item.unitPrice);
+        }, 0);
+        const outletRevenue = revenueByOutlet.get(order.outletId) ?? 0;
+        revenueByOutlet.set(order.outletId, outletRevenue + lineRevenue);
+        orderCountByOutlet.set(order.outletId, (orderCountByOutlet.get(order.outletId) ?? 0) + 1);
+        revenue += lineRevenue;
+        orderCount += 1;
+        const outlet = outletById.get(order.outletId);
+        const outletType = outlet?.type ?? "OTHER";
+        revenueByType.set(outletType, (revenueByType.get(outletType) ?? 0) + lineRevenue);
+        const paymentMethod = order.paymentMethod?.trim() || "Unspecified";
+        revenueByPaymentMethod.set(paymentMethod, (revenueByPaymentMethod.get(paymentMethod) ?? 0) + lineRevenue);
+        const bucketIndex = getBucketIndex(order.orderDate, periodStart, now, revenueTrend.length);
+        revenueTrend[bucketIndex] += lineRevenue;
+    }
+
+    for (const order of previousOrders) {
+        const lineRevenue = order.items.reduce((total, item) => total + Number(item.quantity) * Number(item.unitPrice), 0);
+        previousRevenueByOutlet.set(order.outletId, (previousRevenueByOutlet.get(order.outletId) ?? 0) + lineRevenue);
+    }
+
+    for (const order of lastMonthOrders) {
+        const lineRevenue = order.items.reduce((total, item) => total + Number(item.quantity) * Number(item.unitPrice), 0);
+        monthlyRevenueByOutlet.set(order.outletId, (monthlyRevenueByOutlet.get(order.outletId) ?? 0) + lineRevenue);
+    }
+
+    const outletRows = outlets.map((outlet) => {
+        const currentRevenue = revenueByOutlet.get(outlet.id) ?? 0;
+        const previousRevenue = previousRevenueByOutlet.get(outlet.id) ?? 0;
+        const trend = filters.period === "ALL" ? null : currentRevenue > previousRevenue ? "UP" : currentRevenue < previousRevenue ? "DOWN" : "FLAT";
+
+        return {
+            id: outlet.id,
+            name: outlet.name,
+            code: outlet.code,
+            type: outlet.type,
+            phone: outlet.phoneNumber,
+            imageUrl: outlet.imageUrl,
+            region: outlet.distributor.territory.region.name,
+            territory: outlet.distributor.territory.name,
+            distributor: outlet.distributor.name,
+            createdBy: outlet.createdBy?.displayName ?? "Unknown",
+            revenue: currentRevenue,
+            orders: orderCountByOutlet.get(outlet.id) ?? 0,
+            coolerCount: outlet.coolerCount,
+            trend,
+        };
+    });
+
+    const topTen = [...outletRows].sort((left, right) => right.revenue - left.revenue).slice(0, 10);
+    const bottomTen = [...outletRows].sort((left, right) => left.revenue - right.revenue).slice(0, 10);
+    const withCoolers = outlets.filter((outlet) => outlet.coolerCount > 0);
+    const lowRevenueCoolers = withCoolers.filter((outlet) => (monthlyRevenueByOutlet.get(outlet.id) ?? 0) < 5000).length;
+    const outletsWithFewOrders = outletRows.filter((outlet) => outlet.orders <= 3).length;
+    const averageRevenuePerOutlet = outlets.length ? revenue / outlets.length : 0;
+
+    return {
+        period: filters.period,
+        updatedAt: now.toISOString(),
+        currency: "KES",
+        stats: {
+            totalOutlets: outlets.length,
+            withCoolers: withCoolers.length,
+            withoutCoolers: outlets.length - withCoolers.length,
+            revenue,
+            orders: orderCount,
+            volume,
+            averageRevenuePerOutlet,
+            shops: outlets.filter(({ type }) => type === "SHOP").length,
+            restaurants: outlets.filter(({ type }) => type === "RESTAURANT").length,
+            kiosks: outlets.filter(({ type }) => type === "KIOSK").length,
+            bars: outlets.filter(({ type }) => type === "BAR").length,
+            other: outlets.filter(({ type }) => type === "OTHER").length,
+        },
+        revenueTrend,
+        topTen,
+        bottomTen,
+        revenueByType: [...revenueByType.entries()].map(([type, value]) => ({ type, value })),
+        revenueByPaymentMethod: [...revenueByPaymentMethod.entries()].map(([method, value]) => ({ method, value })),
+        coolerRevenueRisk: [
+            { label: "Below KES 5,000/month", value: lowRevenueCoolers },
+            { label: "KES 5,000/month or more", value: withCoolers.length - lowRevenueCoolers },
+        ],
+        lowOrderCounts: [
+            { label: "3 or fewer orders", value: outletsWithFewOrders },
+            { label: "More than 3 orders", value: outlets.length - outletsWithFewOrders },
+        ],
+        outlets: outletRows,
+    };
+}
