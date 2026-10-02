@@ -87,6 +87,39 @@ function formatDateTime(value: string) {
   }).format(new Date(value));
 }
 
+function formatLastSeen(value: string) {
+  const date = new Date(value);
+  const day = new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    timeZone: "Africa/Nairobi",
+  }).format(date);
+  const monthYear = new Intl.DateTimeFormat("en-GB", {
+    month: "short",
+    year: "numeric",
+    timeZone: "Africa/Nairobi",
+  }).format(date);
+  const time = new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Africa/Nairobi",
+  }).format(date);
+
+  return { day, monthYear, time };
+}
+
+function LastSeenLabel({ value }: { value: string }) {
+  const { day, monthYear, time } = formatLastSeen(value);
+
+  return (
+    <span className="flex min-w-0 flex-col leading-tight">
+      <span className="whitespace-nowrap">Last seen {day}</span>
+      <span className="whitespace-nowrap">{monthYear}</span>
+      <span className="whitespace-nowrap">{time}</span>
+    </span>
+  );
+}
+
 function Modal({ title, icon: Icon, onClose, children, size = "max-w-2xl" }: {
   title: string;
   icon?: typeof UserRoundPlus;
@@ -681,7 +714,19 @@ export function UserManagementPage() {
                             <td className="px-3 py-3 text-muted-foreground">{user.department || "--"}</td>
                             <td className="px-3 py-3"><span className={`inline-flex items-center gap-1.5 ${user.status === "ACTIVE" ? "text-emerald-600" : "text-muted-foreground"}`}><span className={`size-1.5 rounded-full ${user.status === "ACTIVE" ? "bg-emerald-500" : "bg-muted-foreground"}`} />{user.status === "ACTIVE" ? "Active" : "Inactive"}{user.locked && " - Locked"}</span></td>
                             <td className="px-3 py-3">{user.appAccess ? <span className="text-emerald-600">Active</span> : <span className="text-muted-foreground">No Access</span>}</td>
-                            <td className="px-3 py-3">{user.online ? <span className="inline-flex items-center gap-1 text-emerald-600" title="Online"><Wifi className="size-4" /><span className="size-1.5 animate-pulse rounded-full bg-emerald-500" /></span> : <WifiOff className="size-4 text-muted-foreground" aria-label="Offline" />}</td>
+                            <td className="px-3 py-3">
+                              {user.online ? (
+                                <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-emerald-600" title="Online">
+                                  <Wifi className="size-4" />
+                                  <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
+                                </span>
+                              ) : (
+                                <span className="inline-flex max-w-[150px] items-start gap-1.5 text-xs text-muted-foreground" title={user.lastSeenAt ? formatDateTime(user.lastSeenAt) : "Offline - never logged in"}>
+                                  <WifiOff className="size-4" />
+                                  {user.lastSeenAt ? <LastSeenLabel value={user.lastSeenAt} /> : <span>Offline</span>}
+                                </span>
+                              )}
+                            </td>
                             <td className="px-3 py-3">
                               <DropdownMenu>
                                 <DropdownMenuTrigger render={<Button type="button" variant="ghost" size="icon" aria-label={`Actions for ${user.name}`}><MoreHorizontal /></Button>} />

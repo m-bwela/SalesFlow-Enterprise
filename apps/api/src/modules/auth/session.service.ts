@@ -29,12 +29,14 @@ export class SessionService {
     }
 
     async revoke(sessionId: string) {
+        const revokedAt = new Date();
         await prisma.session.update({
             where: {
                 id: sessionId,
             },
             data: {
-                revokedAt: new Date(),
+                revokedAt,
+                lastSeenAt: revokedAt,
             },
         });
     }

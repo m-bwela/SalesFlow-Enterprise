@@ -20,6 +20,7 @@ export interface ManagedUser {
   blockNumber: string;
   status: "ACTIVE" | "SUSPENDED" | "DISABLED" | "ARCHIVED";
   online: boolean;
+  lastSeenAt: string | null;
   appAccess: boolean;
   locked: boolean;
   incomplete: boolean;

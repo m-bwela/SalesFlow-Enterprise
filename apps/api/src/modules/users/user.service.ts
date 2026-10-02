@@ -108,11 +108,15 @@ export async function getUserManagementOverview(organizationId: string) {
 	});
 
 	const userIds = users.map(({ id }) => id);
-	const [onlineSessions, loginAttemptsToday, loginAttemptsWeek, neverLoggedInUsers, loginEvents, signupUsers, departments, roles, shiftSetting] = await Promise.all([
+	const [onlineSessions, sessionActivity, loginAttemptsToday, loginAttemptsWeek, neverLoggedInUsers, loginEvents, signupUsers, departments, roles, shiftSetting] = await Promise.all([
 		userIds.length ? prisma.session.findMany({
 			where: { userId: { in: userIds }, revokedAt: null, expiresAt: { gt: now }, lastSeenAt: { gte: new Date(now.getTime() - ACTIVE_SESSION_WINDOW_MS) }, user: { status: "ACTIVE" } },
 			select: { userId: true },
 			distinct: ["userId"],
+		}) : Promise.resolve([]),
+		userIds.length ? prisma.session.findMany({
+			where: { userId: { in: userIds } },
+			select: { userId: true, lastSeenAt: true, createdAt: true },
 		}) : Promise.resolve([]),
 		userIds.length ? prisma.loginAttempt.count({ where: { userId: { in: userIds }, successful: true, createdAt: { gte: todayStart } } }) : Promise.resolve(0),
 		userIds.length ? prisma.loginAttempt.count({ where: { userId: { in: userIds }, successful: true, createdAt: { gte: weekStart } } }) : Promise.resolve(0),
@@ -138,6 +142,14 @@ export async function getUserManagementOverview(organizationId: string) {
 	]);
 
 	const onlineIds = new Set(onlineSessions.map(({ userId }) => userId));
+	const lastSeenByUser = new Map<string, Date>();
+	for (const session of sessionActivity) {
+		const activityAt = session.lastSeenAt ?? session.createdAt;
+		const previousActivity = lastSeenByUser.get(session.userId);
+		if (!previousActivity || activityAt > previousActivity) {
+			lastSeenByUser.set(session.userId, activityAt);
+		}
+	}
 	const loginCounts = new Map<string, number>();
 	for (const event of loginEvents) {
 		if (event.successful && event.userId) loginCounts.set(event.userId, (loginCounts.get(event.userId) ?? 0) + 1);
@@ -204,6 +216,7 @@ export async function getUserManagementOverview(organizationId: string) {
 				blockNumber: user.blockNumber ?? "",
 				status: user.status,
 				online: onlineIds.has(user.id),
+				lastSeenAt: lastSeenByUser.get(user.id)?.toISOString() ?? null,
 				appAccess: user.status === "ACTIVE" && !roles.some(({ code }) => ["ADMIN", "SUPER_ADMIN"].includes(code)),
 				locked: Boolean(user.lockedUntil && user.lockedUntil > now),
 				incomplete: !user.firstName || !user.surname || !user.phoneNumber || !user.department || !user.transportType || !user.nationalIdFrontPath,
@@ -458,7 +471,8 @@ export async function changeUserStatus(userId: string, organizationId: string, s
 	return prisma.$transaction(async (transaction) => {
 		const updatedUser = await transaction.user.update({ where: { id: userId }, data: { status }, select: { id: true, status: true } });
 		if (status !== "ACTIVE") {
-			await transaction.session.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
+			const revokedAt = new Date();
+			await transaction.session.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt, lastSeenAt: revokedAt } });
 		}
 		return updatedUser;
 	});
@@ -489,6 +503,7 @@ export async function unlockAllUsers(organizationId: string) {
 }
 
 export async function checkoutAllUsers(organizationId: string, userId?: string, exceptUserId?: string) {
+	const revokedAt = new Date();
 	const result = await prisma.session.updateMany({
 		where: {
 			revokedAt: null,
@@ -498,7 +513,7 @@ export async function checkoutAllUsers(organizationId: string, userId?: string, 
 				memberships: { some: { organizationId, isActive: true } },
 			},
 		},
-		data: { revokedAt: new Date() },
+		data: { revokedAt, lastSeenAt: revokedAt },
 	});
 	return { loggedOut: result.count };
 }
