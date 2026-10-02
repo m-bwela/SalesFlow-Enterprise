@@ -277,7 +277,7 @@ export async function createManagedUser(input: {
 	const storedPaths: string[] = [];
 	const storeIdentityFile = async (file: IdentityUpload | undefined) => {
 		if (!file) return null;
-		const extension = file.mimetype === "image/png" ? ".png" : ".jpg";
+		const extension = file.mimetype === "image/png" ? ".png" : file.mimetype === "image/pdf" ? ".pdf" : ".jpg" ;
 		const fileName = `${randomUUID()}${extension}`;
 		await mkdir(PRIVATE_ID_DIRECTORY, { recursive: true });
 		await writeFile(resolve(PRIVATE_ID_DIRECTORY, fileName), file.buffer, { flag: "wx", mode: 0o600 });

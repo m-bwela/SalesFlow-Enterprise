@@ -82,6 +82,7 @@ function getUploadedFiles(files: unknown) {
 function isValidImageSignature(file: { mimetype: string; buffer: Buffer }) {
   if (file.mimetype === "image/png") return file.buffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
   if (file.mimetype === "image/jpeg") return file.buffer[0] === 0xff && file.buffer[1] === 0xd8 && file.buffer[2] === 0xff;
+  if (file.mimetype === "image/pdf") return file.buffer.subarray(0, 4).equals(Buffer.from([0x25, 0x50, 0x44, 0x46]));
   return false;
 }
 
@@ -111,7 +112,7 @@ router.post(
       const nationalIdBack = files.nationalIdBack?.[0];
       if (!nationalIdFront) throw new AppError("ID_FRONT_REQUIRED", 400, "Upload the front of the national ID.");
       for (const file of [nationalIdFront, nationalIdBack]) {
-        if (file && !isValidImageSignature(file)) throw new AppError("INVALID_ID_IMAGE", 400, "The uploaded file is not a valid JPEG or PNG image.");
+        if (file && !isValidImageSignature(file)) throw new AppError("INVALID_ID_IMAGE", 400, "The uploaded file is not a valid JPEG, PNG or PDF image.");
       }
 
       const user = await createManagedUser({
@@ -194,7 +195,7 @@ router.put(
       const nationalIdFront = files.nationalIdFront?.[0];
       const nationalIdBack = files.nationalIdBack?.[0];
       for (const file of [nationalIdFront, nationalIdBack]) {
-        if (file && !isValidImageSignature(file)) throw new AppError("INVALID_ID_IMAGE", 400, "The uploaded file is not a valid JPEG or PNG image.");
+        if (file && !isValidImageSignature(file)) throw new AppError("INVALID_ID_IMAGE", 400, "The uploaded file is not a valid JPEG, PNG or PDF image.");
       }
 
       const user = await updateManagedUser(

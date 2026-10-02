@@ -266,8 +266,8 @@ function UserCreateDialog({
         <fieldset className="space-y-3 rounded-lg border p-4">
           <legend className="px-1 text-sm font-medium">National ID</legend>
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="space-y-1.5 text-sm">ID Front *<Input name="nationalIdFront" type="file" accept="image/png,image/jpeg" required /></label>
-            <label className="space-y-1.5 text-sm">ID Back *<Input name="nationalIdBack" type="file" accept="image/png,image/jpeg" required /></label>
+            <label className="space-y-1.5 text-sm">ID Front *<Input name="nationalIdFront" type="file" accept="image/png,image/jpeg,image/pdf" required /></label>
+            <label className="space-y-1.5 text-sm">ID Back *<Input name="nationalIdBack" type="file" accept="image/png,image/jpeg,image/pdf" required /></label>
           </div>
           <p className="flex items-center gap-2 text-xs text-muted-foreground"><ShieldCheck className="size-4" />Files are stored privately and require admin permission to view.</p>
         </fieldset>
