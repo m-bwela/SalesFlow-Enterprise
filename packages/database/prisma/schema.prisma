@@ -44,6 +44,14 @@ enum SalesOrderStatus {
   CANCELLED
 }
 
+enum OutletType {
+  SHOP
+  RESTAURANT
+  KIOSK
+  BAR
+  OTHER
+}
+
 enum RoleCode {
   ADMIN
   SUPER_ADMIN
@@ -95,6 +103,7 @@ model User {
   createdDocuments Document[]   @relation("DocumentCreatedBy")
   ownedDocuments   Document[]   @relation("DocumentOwner")
   createdSalesOrders SalesOrder[] @relation("SalesOrderCreatedBy")
+  createdOutlets   Outlet[]      @relation("OutletCreatedBy")
   loginAttempts   LoginAttempt[]
   updatedShiftSettings AsrShiftSetting[] @relation("AsrShiftUpdatedBy")
   department      Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
@@ -331,13 +340,18 @@ model Outlet {
   distributorId  String   @db.Uuid
   code           String
   name           String
+  type           OutletType @default(OTHER)
   address        String?
+  imageUrl       String?
+  coolerCount    Int        @default(0)
+  createdById    String?    @db.Uuid
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   distributor  Distributor  @relation(fields: [distributorId], references: [id], onDelete: Restrict)
+  createdBy    User?        @relation("OutletCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   salesOrders  SalesOrder[]
 
   @@unique([organizationId, code])
@@ -359,6 +373,7 @@ model SalesOrder {
   expectedDeliveryAt DateTime?
   deliveredAt      DateTime?
   cancelledAt      DateTime?
+  paymentMethod    String?
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 

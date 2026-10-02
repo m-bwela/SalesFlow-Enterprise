@@ -2,7 +2,7 @@ import { Router } from "express";
 
 import { authenticate } from "../auth/auth.middleware.js"
 import { requirePermission } from "../auth/authorization.js";
-import { getAdminDashboard, getAsrDashboard } from "./dashboard.service.js";
+import { getAdminDashboard, getAsrDashboard, getTsmDashboard } from "./dashboard.service.js";
 
 import { z } from "zod";
 
@@ -40,6 +40,34 @@ const asrDashboardPeriodSchema = z.enum([
     "THIS_MONTH",
     "ALL",
 ]).default("TODAY");
+
+const tsmDashboardFilterSchema = z.object({
+    period: z.enum(["TODAY", "YESTERDAY", "THIS_WEEK", "LAST_WEEK", "THIS_MONTH", "ALL"]).default("THIS_WEEK"),
+    regionId: z.string().uuid().optional(),
+    territoryId: z.string().uuid().optional(),
+});
+
+router.get(
+    "/tsm",
+    authenticate,
+    requirePermission("dashboard.view"),
+    async (req, res, next) => {
+        try {
+            const membership = res.locals.membership;
+            if (!membership) {
+                return res.status(403).json({
+                    error: { code: "FORBIDDEN", message: "No active organization membership found." },
+                });
+            }
+
+            const filters = tsmDashboardFilterSchema.parse(req.query);
+            const dashboard = await getTsmDashboard(membership.organizationId, filters);
+            return res.json({ data: dashboard });
+        } catch (error) {
+            return next(error);
+        }
+    },
+);
 
 router.get(
     "/asr",

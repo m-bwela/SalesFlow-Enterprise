@@ -16,6 +16,20 @@ export interface DashboardFilters {
     asrId?: string;
 }
 
+export type TsmDashboardPeriod =
+    | "TODAY"
+    | "YESTERDAY"
+    | "THIS_WEEK"
+    | "LAST_WEEK"
+    | "THIS_MONTH"
+    | "ALL";
+
+export interface TsmDashboardFilters {
+    period: TsmDashboardPeriod;
+    regionId?: string;
+    territoryId?: string;
+}
+
 export type AsrDashboardPeriod =
     | "TODAY"
     | "YESTERDAY"

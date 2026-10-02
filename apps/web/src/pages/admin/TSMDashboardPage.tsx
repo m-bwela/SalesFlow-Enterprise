@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Activity,
   BarChart3,
   Gauge,
   MapPinned,
-  ShieldCheck,
+  Percent,
+  RefreshCw,
   Store,
   TrendingUp,
   Users,
@@ -14,184 +15,102 @@ import { KpiCard } from "@/components/dashboard/KpiCard";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageContainer } from "@/components/layout/PageContainer";
+import { Button } from "@/components/ui/button";
+import { getTsmDashboard, type TsmDashboardData, type TsmDashboardPeriod } from "@/services/dashboard.service";
 
-const periods = [
-  "Today",
-  "Yesterday",
-  "This week",
-  "Last week",
-  "This month",
-  "All",
+const periods: Array<{ label: string; value: TsmDashboardPeriod }> = [
+  { label: "Today", value: "TODAY" },
+  { label: "Yesterday", value: "YESTERDAY" },
+  { label: "This week", value: "THIS_WEEK" },
+  { label: "Last week", value: "LAST_WEEK" },
+  { label: "This month", value: "THIS_MONTH" },
+  { label: "All", value: "ALL" },
 ];
 
-const tsmRows = [
-  {
-    tsm: "Grace Wanjiku",
-    email: "grace.wanjiku@salesflow.co.ke",
-    phone: "+254 712 456 788",
-    lastLogin: "08:42 AM",
-    region: "Coast",
-    territory: "Mombasa",
-    rank: "#1",
-    distributors: "08",
-    asrs: "03",
-    revenue: "KES 4.2M",
-    processed: "612",
-    delayed: "04",
-    status: "Healthy",
-  },
-  {
-    tsm: "Daniel Otieno",
-    email: "daniel.otieno@salesflow.co.ke",
-    phone: "+254 722 880 443",
-    lastLogin: "09:14 AM",
-    region: "Nairobi",
-    territory: "Nairobi Central",
-    rank: "#2",
-    distributors: "07",
-    asrs: "02",
-    revenue: "KES 3.9M",
-    processed: "548",
-    delayed: "06",
-    status: "Stable",
-  },
-  {
-    tsm: "Mary Kamau",
-    email: "mary.kamau@salesflow.co.ke",
-    phone: "+254 734 201 442",
-    lastLogin: "10:05 AM",
-    region: "Western",
-    territory: "Kisumu",
-    rank: "#3",
-    distributors: "06",
-    asrs: "02",
-    revenue: "KES 3.5M",
-    processed: "482",
-    delayed: "08",
-    status: "Watch",
-  },
-  {
-    tsm: "Joseph Kariuki",
-    email: "joseph.kariuki@salesflow.co.ke",
-    phone: "+254 720 112 554",
-    lastLogin: "07:56 AM",
-    region: "Central",
-    territory: "Nyeri",
-    rank: "#4",
-    distributors: "05",
-    asrs: "02",
-    revenue: "KES 3.1M",
-    processed: "441",
-    delayed: "09",
-    status: "Stable",
-  },
-  {
-    tsm: "Lucy Achieng",
-    email: "lucy.achieng@salesflow.co.ke",
-    phone: "+254 711 903 341",
-    lastLogin: "08:12 AM",
-    region: "Rift Valley",
-    territory: "Nakuru",
-    rank: "#5",
-    distributors: "06",
-    asrs: "03",
-    revenue: "KES 2.9M",
-    processed: "430",
-    delayed: "05",
-    status: "Healthy",
-  },
-  {
-    tsm: "Peter Njoroge",
-    email: "peter.njoroge@salesflow.co.ke",
-    phone: "+254 768 304 709",
-    lastLogin: "09:32 AM",
-    region: "Eastern",
-    territory: "Meru",
-    rank: "#6",
-    distributors: "04",
-    asrs: "02",
-    revenue: "KES 2.6M",
-    processed: "398",
-    delayed: "07",
-    status: "Watch",
-  },
-  {
-    tsm: "Beatrice Muli",
-    email: "beatrice.muli@salesflow.co.ke",
-    phone: "+254 790 118 624",
-    lastLogin: "08:26 AM",
-    region: "North Rift",
-    territory: "Eldoret",
-    rank: "#7",
-    distributors: "05",
-    asrs: "02",
-    revenue: "KES 2.4M",
-    processed: "365",
-    delayed: "10",
-    status: "Stable",
-  },
-  {
-    tsm: "Paul Maingi",
-    email: "paul.maingi@salesflow.co.ke",
-    phone: "+254 701 884 910",
-    lastLogin: "07:48 AM",
-    region: "Coast",
-    territory: "Kwale",
-    rank: "#8",
-    distributors: "04",
-    asrs: "02",
-    revenue: "KES 2.2M",
-    processed: "342",
-    delayed: "11",
-    status: "Watch",
-  },
-  {
-    tsm: "Esther Nduku",
-    email: "esther.nduku@salesflow.co.ke",
-    phone: "+254 716 509 882",
-    lastLogin: "09:08 AM",
-    region: "Nairobi",
-    territory: "Westlands",
-    rank: "#9",
-    distributors: "03",
-    asrs: "01",
-    revenue: "KES 1.9M",
-    processed: "296",
-    delayed: "06",
-    status: "Healthy",
-  },
-  {
-    tsm: "Samuel Wekesa",
-    email: "samuel.wekesa@salesflow.co.ke",
-    phone: "+254 758 320 401",
-    lastLogin: "08:58 AM",
-    region: "Western",
-    territory: "Bungoma",
-    rank: "#10",
-    distributors: "03",
-    asrs: "01",
-    revenue: "KES 1.7M",
-    processed: "274",
-    delayed: "12",
-    status: "Watch",
-  },
-];
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 }).format(value);
+}
+
+function formatCurrency(value: number) {
+  return `KES ${new Intl.NumberFormat("en", {
+    notation: "compact",
+    compactDisplay: "short",
+    maximumFractionDigits: 1,
+  }).format(value)}`;
+}
+
+function formatDateTime(value: string | null) {
+  if (!value) return "No login recorded";
+  return new Intl.DateTimeFormat("en-GB", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Africa/Nairobi",
+  }).format(new Date(value));
+}
 
 function getStatusStyle(status: string) {
   switch (status) {
-    case "Healthy":
-      return "bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/30";
-    case "Stable":
-      return "bg-amber-500/10 text-amber-300 ring-1 ring-amber-500/30";
-    case "Watch":
-      return "bg-rose-500/10 text-rose-300 ring-1 ring-rose-500/30";
-    default:
+    case "Active":
+      return "bg-emerald-500/10 text-emerald-700 ring-1 ring-emerald-500/30 dark:text-emerald-300";
+    case "Inactive":
       return "bg-muted text-muted-foreground";
+    default:
+      return "bg-muted/50 text-muted-foreground";
   }
 }
 
 export function TSMDashboardPage() {
-  const [selectedPeriod, setSelectedPeriod] = useState("This week");
+  const [selectedPeriod, setSelectedPeriod] = useState<TsmDashboardPeriod>("THIS_WEEK");
+  const [selectedRegionId, setSelectedRegionId] = useState("");
+  const [selectedTerritoryId, setSelectedTerritoryId] = useState("");
+  const [dashboard, setDashboard] = useState<TsmDashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadDashboard() {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await getTsmDashboard({
+          period: selectedPeriod,
+          regionId: selectedRegionId || undefined,
+          territoryId: selectedTerritoryId || undefined,
+        });
+        if (active) setDashboard(data);
+      } catch (requestError) {
+        if (active) setError(requestError instanceof Error ? requestError.message : "Could not load TSM dashboard data.");
+      } finally {
+        if (active) {
+          setLoading(false);
+          setRefreshing(false);
+        }
+      }
+    }
+
+    void loadDashboard();
+    return () => {
+      active = false;
+    };
+  }, [selectedPeriod, selectedRegionId, selectedTerritoryId, refreshing]);
+
+  const visibleTerritories = dashboard?.territories.filter(
+    (territory) => !selectedRegionId || territory.regionId === selectedRegionId,
+  ) ?? [];
+  const stats = dashboard?.stats;
+  const metrics = [
+    { title: "Total TSMs", value: formatNumber(stats?.totalTsms ?? 0), description: "Assigned territory managers", icon: Users },
+    { title: "Active TSMs", value: formatNumber(stats?.activeTsms ?? 0), description: "Active user accounts", icon: Activity },
+    { title: "Online Now", value: formatNumber(stats?.onlineNow ?? 0), description: "Seen in the last 5 minutes", icon: Gauge },
+    { title: "Distributors", value: formatNumber(stats?.distributors ?? 0), description: "In selected TSM scopes", icon: Store },
+    { title: "ASRs Attached", value: formatNumber(stats?.asrsAttached ?? 0), description: "Unique assigned ASRs", icon: MapPinned },
+    { title: "Revenue", value: formatCurrency(stats?.revenue ?? 0), description: `For ${periods.find(({ value }) => value === selectedPeriod)?.label}`, icon: TrendingUp },
+    { title: "Orders Processed", value: formatNumber(stats?.ordersProcessed ?? 0), description: "Non-draft, non-cancelled orders", icon: BarChart3 },
+    { title: "Delivery Rate", value: `${(stats?.deliveryRate ?? 0).toFixed(1)}%`, description: "Delivered / processed orders", icon: Percent },
+  ];
 
   return (
     <AppShell>
@@ -199,128 +118,128 @@ export function TSMDashboardPage() {
         <div className="space-y-6">
           <DashboardHeader
             title="TSM Dashboard"
-            description="Territory Leadership overview"
-            showActions
+            description="Territory leadership performance from live account and sales records"
           />
 
           <div className="rounded-xl border bg-card p-4 shadow-sm">
-            <div className="flex flex-wrap items-center gap-15">
+            <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Reporting period">
               {periods.map((period) => {
-                const isSelected = period === selectedPeriod;
-
+                const isSelected = period.value === selectedPeriod;
                 return (
-                  <button
-                    key={period}
+                  <Button
+                    key={period.value}
                     type="button"
+                    size="sm"
+                    variant={isSelected ? "default" : "outline"}
                     aria-pressed={isSelected}
-                    onClick={() => setSelectedPeriod(period)}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                      isSelected
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border bg-muted/20 text-muted-foreground hover:bg-muted/40"
-                    }`}
+                    onClick={() => setSelectedPeriod(period.value)}
                   >
-                    {period}
-                  </button>
+                    {period.label}
+                  </Button>
                 );
               })}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="ml-auto"
+                aria-label="Refresh TSM dashboard"
+                title="Refresh"
+                disabled={loading}
+                onClick={() => setRefreshing(true)}
+              >
+                <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
+              </Button>
             </div>
 
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               <label className="space-y-2 text-sm text-muted-foreground">
                 <span>Region</span>
-                <select className="w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground outline-none ring-0">
-                  <option>All regions</option>
-                  <option>Coast</option>
-                  <option>Nairobi</option>
-                  <option>Western</option>
-                  <option>Central</option>
-                  <option>Rift Valley</option>
+                <select
+                  value={selectedRegionId}
+                  onChange={(event) => {
+                    setSelectedRegionId(event.target.value);
+                    setSelectedTerritoryId("");
+                  }}
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground outline-none"
+                >
+                  <option value="">All regions</option>
+                  {dashboard?.regions.map((region) => <option key={region.id} value={region.id}>{region.name}</option>)}
                 </select>
               </label>
 
               <label className="space-y-2 text-sm text-muted-foreground">
                 <span>Territory</span>
-                <select className="w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground outline-none ring-0">
-                  <option>All territories</option>
-                  <option>Mombasa</option>
-                  <option>Nairobi Central</option>
-                  <option>Kisumu</option>
-                  <option>Nyeri</option>
-                  <option>Nakuru</option>
+                <select
+                  value={selectedTerritoryId}
+                  onChange={(event) => setSelectedTerritoryId(event.target.value)}
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground outline-none"
+                >
+                  <option value="">All territories</option>
+                  {visibleTerritories.map((territory) => <option key={territory.id} value={territory.id}>{territory.name}</option>)}
                 </select>
               </label>
             </div>
           </div>
 
+          {loading && <div className="rounded-lg border p-4 text-sm text-muted-foreground">Loading TSM performance...</div>}
+          {error && <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{error}</div>}
+
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <KpiCard title="Total TSMs" value="84" description="Across all territories" icon={Users} />
-            <KpiCard title="Active TSMs" value="71" description="Currently active" icon={Activity} />
-            <KpiCard title="Online Now" value="42" description="Logged in live" icon={Gauge} />
-            <KpiCard title="Distributors" value="318" description="Mapped distributors" icon={Store} />
-            <KpiCard title="ASRs Attached" value="174" description="Assigned field coverage" icon={MapPinned} />
-            <KpiCard title="Revenue" value="KES 34.8M" description="Current period" icon={TrendingUp} />
-            <KpiCard title="Orders Processed" value="6,840" description="Completed this cycle" icon={BarChart3} />
-            <KpiCard title="Average Score" value="89%" description="Team performance" icon={ShieldCheck} />
+            {metrics.map((metric) => (
+              <KpiCard key={metric.title} {...metric} />
+            ))}
           </div>
 
           <div className="rounded-xl border bg-card shadow-sm">
             <div className="border-b px-6 py-4">
               <h2 className="text-lg font-semibold">TSM Snapshot</h2>
-              <h3 className="text-sm">Territory leads with distributor and ASR coverage. Click a row for details</h3>
+              <p className="text-sm text-muted-foreground">Territory leads with distributor and ASR coverage</p>
             </div>
 
             <div className="overflow-x-auto">
               <table className="min-w-full text-left text-sm">
                 <thead className="bg-muted/50">
                   <tr>
-                    {[
-                      "TSM",
-                      "REGION",
-                      "TERRITORY",
-                      "RANK",
-                      "DISTRIBUTORS",
-                      "ASRS",
-                      "REVENUE",
-                      "PROCESSED",
-                      "DELAYED",
-                      "STATUS",
-                    ].map((column) => (
-                      <th key={column} className="px-4 py-3 font-medium text-muted-foreground">
-                        {column}
-                      </th>
+                    {["TSM", "REGION", "TERRITORY", "RANK", "DISTRIBUTORS", "ASRS", "REVENUE", "PROCESSED", "DELAYED", "STATUS"].map((column) => (
+                      <th key={column} className="px-4 py-3 font-medium text-muted-foreground">{column}</th>
                     ))}
                   </tr>
                 </thead>
-
                 <tbody>
-                  {tsmRows.map((row) => (
-                    <tr key={row.tsm} className="border-t align-top">
-                      <td className="px-4 py-3">
-                        <div className="font-medium text-foreground">{row.tsm}</div>
-                        <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
-                          <div>{row.email}</div>
-                          <div>{row.phone}</div>
-                          <div>Last login: {row.lastLogin}</div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">{row.region}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{row.territory}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{row.rank}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{row.distributors}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{row.asrs}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{row.revenue}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{row.processed}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{row.delayed}</td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getStatusStyle(row.status)}`}>
-                          {row.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                  {dashboard?.rows.map((row) => {
+                    return (
+                      <tr key={row.id} className="border-t align-top">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2 font-medium text-foreground">
+                            {row.name}
+                            {row.online && <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" title="Online now" />}
+                          </div>
+                          <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                            <div>{row.email}</div>
+                            <div>{row.phone ?? "No phone recorded"}</div>
+                            <div>Last login: {formatDateTime(row.lastLogin)}</div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">{row.region}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{row.territory}</td>
+                        <td className="px-4 py-3 text-muted-foreground">#{row.rank}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{formatNumber(row.distributors)}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{formatNumber(row.asrs)}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{formatCurrency(row.revenue)}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{formatNumber(row.processed)}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{formatNumber(row.delayed)}</td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getStatusStyle(row.status)}`}>{row.status}</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
+              {!loading && (dashboard?.rows.length ?? 0) === 0 && (
+                <p className="p-8 text-center text-sm text-muted-foreground">No TSM assignments match this period and location filter.</p>
+              )}
             </div>
           </div>
         </div>
