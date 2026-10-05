@@ -12,6 +12,7 @@ import {
   checkoutAllUsers,
   createDepartment,
   createManagedUser,
+  createTerritory,
   getIdentityDocument,
   getUserManagementOverview,
   unlockAllUsers,
@@ -21,11 +22,13 @@ import {
 } from "./user.service.js";
 
 const router = Router();
+const ID_UPLOAD_LIMIT_BYTES = 10 * 1024 * 1024;
+const ID_MIME_TYPES = ["image/jpeg", "image/png", "application/pdf", "image/pdf"];
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024, files: 2 },
+  limits: { fileSize: ID_UPLOAD_LIMIT_BYTES, files: 2 },
   fileFilter: (_req, file, callback) => {
-    if (["image/jpeg", "image/png", "image/pdf"].includes(file.mimetype)) callback(null, true);
+    if (ID_MIME_TYPES.includes(file.mimetype)) callback(null, true);
     else callback(new AppError("INVALID_ID_IMAGE", 400, "ID images must be JPEG, PNG, or PDF files."));
   },
 });
@@ -37,13 +40,15 @@ const createUserSchema = z.object({
   phone: z.string().trim().min(6).max(32),
   departmentId: z.string().uuid().optional().or(z.literal("")),
   newDepartment: z.string().trim().max(80).optional(),
-  roleLabel: z.enum(["Admin", "Regional Sales Manager", "Territory Sales Manager", "Distributor", "Field Sales Agent", "Mtsr", "Horeca", "Support", "Super Admin"]),
+  roleLabel: z.enum(["Admin", "Regional Sales Manager", "GT TSM", "MT TSM", "Distributor", "Field Sales Agent", "Mtsr", "Horeca", "Support", "Super Admin"]),
   transportType: z.enum(["Company car", "Personal car", "Motorcycle", "Bicycle", "Walking", "None"]),
   homeRegion: z.string().trim().max(120).optional(),
   city: z.string().trim().max(120).optional(),
   streetName: z.string().trim().max(180).optional(),
   blockNumber: z.string().trim().max(80).optional(),
   password: z.string().min(8).max(128).regex(/^[A-Z]/, "Password must start with a capital letter."),
+  regionId: z.string().uuid().optional().or(z.literal("")),
+  territoryId: z.string().uuid().optional().or(z.literal("")),
 });
 
 const updateUserSchema = createUserSchema.omit({
@@ -56,6 +61,7 @@ const updateUserSchema = createUserSchema.omit({
 
 const statusSchema = z.object({ status: z.enum(["PENDING", "ACTIVE", "DISABLED", "SUSPENDED", "ARCHIVED"]) });
 const departmentSchema = z.object({ name: z.string().trim().min(2).max(80) });
+const territorySchema = z.object({ regionId: z.string().uuid(), name: z.string().trim().min(2).max(80) });
 const shiftSchema = z.object({
   closeStart: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/),
   closeEnd: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/),
@@ -82,7 +88,7 @@ function getUploadedFiles(files: unknown) {
 function isValidImageSignature(file: { mimetype: string; buffer: Buffer }) {
   if (file.mimetype === "image/png") return file.buffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
   if (file.mimetype === "image/jpeg") return file.buffer[0] === 0xff && file.buffer[1] === 0xd8 && file.buffer[2] === 0xff;
-  if (file.mimetype === "image/pdf") return file.buffer.subarray(0, 4).equals(Buffer.from([0x25, 0x50, 0x44, 0x46]));
+  if (file.mimetype === "image/pdf" || file.mimetype === "application/pdf") return file.buffer.subarray(0, 4).equals(Buffer.from([0x25, 0x50, 0x44, 0x46]));
   return false;
 }
 
@@ -136,6 +142,16 @@ router.post("/departments", requirePermission("users.create"), async (req, res, 
     const { name } = departmentSchema.parse(req.body);
     const department = await createDepartment(getOrganizationId(res), name);
     return res.status(201).json({ data: department });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post("/territories", requirePermission("users.create"), async (req, res, next) => {
+  try {
+    const { regionId, name } = territorySchema.parse(req.body);
+    const territory = await createTerritory(getOrganizationId(res), regionId, name);
+    return res.status(201).json({ data: territory });
   } catch (error) {
     return next(error);
   }

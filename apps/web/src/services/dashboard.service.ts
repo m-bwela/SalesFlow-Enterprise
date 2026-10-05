@@ -160,6 +160,10 @@ export interface TsmDashboardData {
         territory: string;
         distributors: number;
         asrs: number;
+        team: {
+            asrs: Array<{ id: string; name: string; phone: string | null }>;
+            distributors: Array<{ id: string; name: string }>;
+        };
         revenue: number;
         processed: number;
         delayed: number;

@@ -12,6 +12,14 @@ const LOGIN_LOCK_WINDOW_MS = 15 * 60 * 1000;
 const MAX_FAILED_LOGINS = 5;
 const EAT_OFFSET_MS = 3 * 60 * 60 * 1000;
 
+const KENYA_REGIONS = ["Central Region", "Coast Region", "Eastern Region", "Nairobi Region", "North Eastern Region", "Nyanza Region", "Rift Valley Region", "Western Region"];
+const COAST_TERRITORIES = ["North Coast", "South Coast", "West Coast"];
+const UNASSIGNED_TERRITORY_CODE = "UNASSIGNED";
+
+const toCode = (value: string) => value.toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-|-$/g, "");
+const regionCode = (organizationId: string, name: string) => `${toCode(name)}-${organizationId.slice(0, 8)}`;
+const unassignedRegionCode = (organizationId: string) => `UNASSIGNED-${organizationId.slice(0, 8)}`;
+
 interface IdentityUpload {
 	mimetype: string;
 	buffer: Buffer;
@@ -20,7 +28,8 @@ interface IdentityUpload {
 const roleCodes: Record<string, RoleCode> = {
 	"Admin": "ADMIN",
 	"Regional Sales Manager": "RSM",
-	"Territory Sales Manager": "GT_TSM",
+	"GT TSM": "GT_TSM",
+	"MT TSM": "MT_TSM",
 	"Distributor": "DISTRIBUTOR",
 	"Field Sales Agent": "ASR",
 	"Mtsr": "MTSR",
@@ -61,6 +70,79 @@ function getAuthRoleNames(roles: { name: string; code: string }[]) {
 	return roles.map((role) => role.name || role.code);
 }
 
+async function ensureKenyaRegions(organizationId: string) {
+	await prisma.region.createMany({
+		data: KENYA_REGIONS.map((name) => ({ organizationId, name, code: regionCode(organizationId, name) })),
+		skipDuplicates: true,
+	});
+	const coast = await prisma.region.findUnique({
+		where: { organizationId_code: { organizationId, code: regionCode(organizationId, "Coast Region") } },
+		select: { id: true },
+	});
+	if (coast) {
+		await prisma.territory.createMany({
+			data: COAST_TERRITORIES.map((name) => ({ regionId: coast.id, name, code: toCode(name) })),
+			skipDuplicates: true,
+		});
+	}
+}
+
+// Validates the chosen region/territory and returns the pair to store. A territory always implies its region.
+async function resolveLocation(organizationId: string, regionId: string | undefined, territoryId: string | undefined) {
+	if (territoryId) {
+		const territory = await prisma.territory.findFirst({
+			where: { id: territoryId, region: { organizationId, ...(regionId ? { id: regionId } : {}) } },
+			select: { id: true, regionId: true },
+		});
+		if (!territory) throw new AppError("INVALID_TERRITORY", 400, "Choose a territory that belongs to the selected region.");
+		return { regionId: territory.regionId, territoryId: territory.id };
+	}
+	if (regionId) {
+		const region = await prisma.region.findFirst({ where: { id: regionId, organizationId }, select: { id: true } });
+		if (!region) throw new AppError("INVALID_REGION", 400, "Choose a region in this organization.");
+		return { regionId: region.id, territoryId: null };
+	}
+	return { regionId: null, territoryId: null };
+}
+
+// Which region/territory each role needs, and how wide its access scope is. Admins keep GLOBAL access; their location is informational.
+function applyRoleLocation(roleCode: RoleCode, location: { regionId: string | null; territoryId: string | null }) {
+	const requireRegion = () => {
+		if (!location.regionId) throw new AppError("REGION_REQUIRED", 400, "Choose a region for this role.");
+	};
+	switch (roleCode) {
+		case "ADMIN":
+		case "SUPER_ADMIN":
+			return { ...location, scopeType: "GLOBAL" as ScopeType };
+		case "RSM":
+			requireRegion();
+			return { regionId: location.regionId, territoryId: null, scopeType: "REGION" as ScopeType };
+		case "GT_TSM":
+		case "MT_TSM":
+		case "ASR":
+		case "MTSR":
+			requireRegion();
+			if (!location.territoryId) throw new AppError("TERRITORY_REQUIRED", 400, "Choose a territory for this role.");
+			return { ...location, scopeType: "TERRITORY" as ScopeType };
+		case "DISTRIBUTOR":
+			requireRegion();
+			return { ...location, scopeType: "GLOBAL" as ScopeType };
+		default:
+			return { regionId: null, territoryId: null, scopeType: "GLOBAL" as ScopeType };
+	}
+}
+
+export async function createTerritory(organizationId: string, regionId: string, name: string) {
+	const region = await prisma.region.findFirst({ where: { id: regionId, organizationId }, select: { id: true } });
+	if (!region) throw new AppError("INVALID_REGION", 400, "Choose a region in this organization.");
+	return prisma.territory.upsert({
+		where: { regionId_code: { regionId, code: toCode(name) } },
+		update: {},
+		create: { regionId, name, code: toCode(name) },
+		select: { id: true, name: true, regionId: true },
+	});
+}
+
 export async function getUserManagementOverview(organizationId: string) {
 	const now = new Date();
 	const todayStart = getEatDayStart(now);
@@ -72,6 +154,7 @@ export async function getUserManagementOverview(organizationId: string) {
 		data: ["Administration", "IT", "Accounts", "Marketing", "Operations", "Sales", "Support"].map((name) => ({ organizationId, name })),
 		skipDuplicates: true,
 	});
+	await ensureKenyaRegions(organizationId);
 	const users = await prisma.user.findMany({
 		where: { memberships: { some: { organizationId, isActive: true } } },
 		orderBy: { createdAt: "desc" },
@@ -100,7 +183,7 @@ export async function getUserManagementOverview(organizationId: string) {
 				select: {
 					roles: {
 						where: { isActive: true, startsAt: { lte: now }, OR: [{ endsAt: null }, { endsAt: { gt: now } }] },
-						select: { role: { select: { code: true, name: true } } },
+						select: { regionId: true, territoryId: true, role: { select: { code: true, name: true } } },
 					},
 				},
 			},
@@ -108,7 +191,7 @@ export async function getUserManagementOverview(organizationId: string) {
 	});
 
 	const userIds = users.map(({ id }) => id);
-	const [onlineSessions, sessionActivity, loginAttemptsToday, loginAttemptsWeek, neverLoggedInUsers, loginEvents, signupUsers, departments, roles, shiftSetting] = await Promise.all([
+	const [onlineSessions, sessionActivity, loginAttemptsToday, loginAttemptsWeek, neverLoggedInUsers, loginEvents, signupUsers, departments, roles, shiftSetting, regions] = await Promise.all([
 		userIds.length ? prisma.session.findMany({
 			where: { userId: { in: userIds }, revokedAt: null, expiresAt: { gt: now }, lastSeenAt: { gte: new Date(now.getTime() - ACTIVE_SESSION_WINDOW_MS) }, user: { status: "ACTIVE" } },
 			select: { userId: true },
@@ -139,6 +222,11 @@ export async function getUserManagementOverview(organizationId: string) {
 			create: { organizationId },
 			select: { closeStart: true, closeEnd: true, reopenAt: true, updatedAt: true, updatedBy: { select: { displayName: true } } },
 		}),
+		prisma.region.findMany({
+			where: { organizationId, NOT: { code: { startsWith: "UNASSIGNED" } } },
+			orderBy: { name: "asc" },
+			select: { id: true, name: true, territories: { where: { code: { not: UNASSIGNED_TERRITORY_CODE } }, orderBy: { name: "asc" }, select: { id: true, name: true } } },
+		}),
 	]);
 
 	const onlineIds = new Set(onlineSessions.map(({ userId }) => userId));
@@ -159,6 +247,10 @@ export async function getUserManagementOverview(organizationId: string) {
 	const activeCount = users.filter(({ status }) => status === "ACTIVE").length;
 	const asrCodes = ["ASR"];
 	const tsmCodes = ["GT_TSM", "MT_TSM"];
+	const userLocations = new Map(users.map((user) => {
+		const located = user.memberships.flatMap((membership) => membership.roles).find((membershipRole) => membershipRole.regionId);
+		return [user.id, { regionId: located?.regionId ?? "", territoryId: located?.territoryId ?? "" }];
+	}));
 	const adminRsmCodes = ["ADMIN", "SUPER_ADMIN", "RSM"];
 	const onlineNow = onlineIds.size;
 	const neverLoggedIn = users.filter((user) => !loginCounts.has(user.id) && !loginAttemptsToday).length;
@@ -214,6 +306,8 @@ export async function getUserManagementOverview(organizationId: string) {
 				city: user.city ?? "",
 				streetName: user.streetName ?? "",
 				blockNumber: user.blockNumber ?? "",
+				regionId: userLocations.get(user.id)?.regionId ?? "",
+				territoryId: userLocations.get(user.id)?.territoryId ?? "",
 				status: user.status,
 				online: onlineIds.has(user.id),
 				lastSeenAt: lastSeenByUser.get(user.id)?.toISOString() ?? null,
@@ -226,6 +320,7 @@ export async function getUserManagementOverview(organizationId: string) {
 			};
 		}),
 		departments,
+		regions,
 		roles: roles.map(({ id, code, name }) => ({ id, code, name })),
 		loginAttempts: loginEvents.slice(0, 100).map((event) => ({
 			userId: event.userId,
@@ -257,11 +352,15 @@ export async function createManagedUser(input: {
 	streetName: string;
 	blockNumber: string;
 	password: string;
+	regionId?: string;
+	territoryId?: string;
 	nationalIdFront?: IdentityUpload;
 	nationalIdBack?: IdentityUpload;
 }, organizationId: string) {
 	const roleCode = roleCodes[input.roleLabel];
 	if (!roleCode) throw new AppError("INVALID_ROLE", 400, "Choose a valid user role.");
+	const location = await resolveLocation(organizationId, input.regionId || undefined, input.territoryId || undefined);
+	const roleLocation = applyRoleLocation(roleCode, location);
 
 	const email = input.email.trim().toLowerCase();
 	const existing = await prisma.user.findUnique({ where: { email }, select: { id: true } });
@@ -290,7 +389,7 @@ export async function createManagedUser(input: {
 	const storedPaths: string[] = [];
 	const storeIdentityFile = async (file: IdentityUpload | undefined) => {
 		if (!file) return null;
-		const extension = file.mimetype === "image/png" ? ".png" : file.mimetype === "image/pdf" ? ".pdf" : ".jpg" ;
+		const extension = file.mimetype === "image/png" ? ".png" : file.mimetype.endsWith("pdf") ? ".pdf" : ".jpg" ;
 		const fileName = `${randomUUID()}${extension}`;
 		await mkdir(PRIVATE_ID_DIRECTORY, { recursive: true });
 		await writeFile(resolve(PRIVATE_ID_DIRECTORY, fileName), file.buffer, { flag: "wx", mode: 0o600 });
@@ -336,7 +435,9 @@ export async function createManagedUser(input: {
 				data: {
 					membershipId: membership.id,
 					roleId: role.id,
-					scopeType: "GLOBAL" as ScopeType,
+					scopeType: roleLocation.scopeType,
+					regionId: roleLocation.regionId,
+					territoryId: roleLocation.territoryId,
 					isActive: true,
 				},
 			});
@@ -361,16 +462,21 @@ export async function updateManagedUser(userId: string, organizationId: string, 
 	city: string;
 	streetName: string;
 	blockNumber: string;
+	regionId?: string;
+	territoryId?: string;
 	nationalIdFront?: IdentityUpload;
 	nationalIdBack?: IdentityUpload;
 }) {
 	const roleCode = roleCodes[input.roleLabel];
 	if (!roleCode) throw new AppError("INVALID_ROLE", 400, "Choose a valid user role.");
+	const location = await resolveLocation(organizationId, input.regionId || undefined, input.territoryId || undefined);
+	const roleLocation = applyRoleLocation(roleCode, location);
 
 	const existingUser = await prisma.user.findFirst({
 		where: { id: userId, memberships: { some: { organizationId, isActive: true } } },
 		select: {
 			id: true,
+			status: true,
 			nationalIdFrontPath: true,
 			nationalIdBackPath: true,
 			memberships: { where: { organizationId, isActive: true }, select: { id: true }, take: 1 },
@@ -394,7 +500,7 @@ export async function updateManagedUser(userId: string, organizationId: string, 
 	const storedPaths: string[] = [];
 	const saveReplacement = async (file: IdentityUpload | undefined) => {
 		if (!file) return null;
-		const extension = file.mimetype === "image/png" ? ".png" : ".jpg";
+		const extension = file.mimetype === "image/png" ? ".png" : file.mimetype.endsWith("pdf") ? ".pdf" : ".jpg";
 		const fileName = `${randomUUID()}${extension}`;
 		await mkdir(PRIVATE_ID_DIRECTORY, { recursive: true });
 		await writeFile(resolve(PRIVATE_ID_DIRECTORY, fileName), file.buffer, { flag: "wx", mode: 0o600 });
@@ -429,15 +535,25 @@ export async function updateManagedUser(userId: string, organizationId: string, 
 				},
 				select: { id: true, displayName: true, email: true },
 			});
+			const previousDistributorRoles = await transaction.membershipRole.findMany({
+				where: { membershipId, isActive: true, role: { code: "DISTRIBUTOR" }, distributorId: { not: null } },
+				select: { distributorId: true },
+			});
 			await transaction.membershipRole.updateMany({
 				where: { membershipId, isActive: true },
 				data: { isActive: false, endsAt: new Date() },
 			});
 			await transaction.membershipRole.upsert({
 				where: { membershipId_roleId: { membershipId, roleId: role.id } },
-				update: { isActive: true, endsAt: null, startsAt: new Date(), scopeType: "GLOBAL" },
-				create: { membershipId, roleId: role.id, scopeType: "GLOBAL", isActive: true },
+				update: { isActive: true, endsAt: null, startsAt: new Date(), scopeType: roleLocation.scopeType, regionId: roleLocation.regionId, territoryId: roleLocation.territoryId },
+				create: { membershipId, roleId: role.id, scopeType: roleLocation.scopeType, regionId: roleLocation.regionId, territoryId: roleLocation.territoryId, isActive: true },
 			});
+			if (roleCode !== "DISTRIBUTOR") {
+				const distributorIds = previousDistributorRoles.flatMap(({ distributorId }) => distributorId ? [distributorId] : []);
+				if (distributorIds.length) await transaction.distributor.updateMany({ where: { id: { in: distributorIds } }, data: { isActive: false } });
+			} else {
+				await syncDistributorRecord(transaction, userId, organizationId, existingUser.status);
+			}
 			return user;
 		});
 
@@ -483,33 +599,28 @@ export async function changeUserStatus(userId: string, organizationId: string, s
 async function syncDistributorRecord(transaction: Prisma.TransactionClient, userId: string, organizationId: string, status: UserStatus) {
 	const membershipRole = await transaction.membershipRole.findFirst({
 		where: { isActive: true, role: { code: "DISTRIBUTOR" }, membership: { userId, organizationId, isActive: true } },
-		select: { id: true, distributorId: true, membership: { select: { user: { select: { displayName: true, phoneNumber: true } } } } },
+		select: { id: true, distributorId: true, regionId: true, territoryId: true, membership: { select: { user: { select: { displayName: true, phoneNumber: true } } } } },
 	});
 	if (!membershipRole) return;
 
 	const isActive = status === "ACTIVE";
+	const { user } = membershipRole.membership;
 	if (membershipRole.distributorId) {
-		await transaction.distributor.update({ where: { id: membershipRole.distributorId }, data: { isActive } });
+		const territoryId = membershipRole.regionId
+			? await resolveDistributorTerritoryId(transaction, organizationId, membershipRole.regionId, membershipRole.territoryId)
+			: undefined;
+		await transaction.distributor.update({
+			where: { id: membershipRole.distributorId },
+			data: { isActive, name: user.displayName, phoneNumber: user.phoneNumber, ...(territoryId ? { territoryId } : {}) },
+		});
 		return;
 	}
 	if (!isActive) return;
 
-	const region = await transaction.region.upsert({
-		where: { organizationId_code: { organizationId, code: `UNASSIGNED-${organizationId.slice(0, 8)}` } },
-		update: {},
-		create: { organizationId, name: "Unassigned", code: `UNASSIGNED-${organizationId.slice(0, 8)}` },
-		select: { id: true },
-	});
-	const territory = await transaction.territory.upsert({
-		where: { regionId_code: { regionId: region.id, code: "UNASSIGNED" } },
-		update: {},
-		create: { regionId: region.id, name: "Unassigned", code: "UNASSIGNED" },
-		select: { id: true },
-	});
-	const { user } = membershipRole.membership;
+	const territoryId = await resolveDistributorTerritoryId(transaction, organizationId, membershipRole.regionId, membershipRole.territoryId);
 	const distributor = await transaction.distributor.create({
 		data: {
-			territoryId: territory.id,
+			territoryId,
 			name: user.displayName,
 			code: `DST-${userId.replace(/-/g, "").slice(0, 8).toUpperCase()}`,
 			phoneNumber: user.phoneNumber,
@@ -518,6 +629,24 @@ async function syncDistributorRecord(transaction: Prisma.TransactionClient, user
 		select: { id: true },
 	});
 	await transaction.membershipRole.update({ where: { id: membershipRole.id }, data: { distributorId: distributor.id } });
+}
+
+// With no chosen territory, the distributor goes under an "Unassigned" territory of its region (or of a catch-all region).
+async function resolveDistributorTerritoryId(transaction: Prisma.TransactionClient, organizationId: string, regionId: string | null, territoryId: string | null) {
+	if (territoryId) return territoryId;
+	const targetRegionId = regionId ?? (await transaction.region.upsert({
+		where: { organizationId_code: { organizationId, code: unassignedRegionCode(organizationId) } },
+		update: {},
+		create: { organizationId, name: "Unassigned", code: unassignedRegionCode(organizationId) },
+		select: { id: true },
+	})).id;
+	const territory = await transaction.territory.upsert({
+		where: { regionId_code: { regionId: targetRegionId, code: UNASSIGNED_TERRITORY_CODE } },
+		update: {},
+		create: { regionId: targetRegionId, name: "Unassigned", code: UNASSIGNED_TERRITORY_CODE },
+		select: { id: true },
+	});
+	return territory.id;
 }
 
 export async function createDepartment(organizationId: string, name: string) {

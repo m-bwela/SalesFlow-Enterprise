@@ -257,6 +257,7 @@ export async function getTsmDashboard(organizationId: string, filters: TsmDashbo
                 regionId: true,
                 territoryId: true,
                 distributorId: true,
+                role: { select: { code: true } },
                 membership: {
                     select: {
                         user: {
@@ -292,26 +293,20 @@ export async function getTsmDashboard(organizationId: string, filters: TsmDashbo
         assignmentsByUser.set(userId, current);
     }
 
-    const allRegionIds = regions.map(({ id }) => id);
-    const allTerritoryIds = territories.map(({ id }) => id);
-    const allDistributorIds = distributors.map(({ id }) => id);
     const tsmScopes = [...assignmentsByUser.entries()].map(([userId, userAssignments]) => {
         const scopeRegionIds = new Set<string>();
         const scopeTerritoryIds = new Set<string>();
         const scopeDistributorIds = new Set<string>();
 
         for (const assignment of userAssignments) {
-            if (assignment.scopeType === "GLOBAL") {
-                allRegionIds.forEach((id) => scopeRegionIds.add(id));
-                allTerritoryIds.forEach((id) => scopeTerritoryIds.add(id));
-                allDistributorIds.forEach((id) => scopeDistributorIds.add(id));
-            } else if (assignment.regionId) {
-                scopeRegionIds.add(assignment.regionId);
-                (territoriesByRegion.get(assignment.regionId) ?? []).forEach((id) => scopeTerritoryIds.add(id));
-            } else if (assignment.territoryId) {
+            // A TSM's team is whatever region/territory they were assigned; "global" access does not mean "covers everything".
+            if (assignment.territoryId) {
                 scopeTerritoryIds.add(assignment.territoryId);
                 const territory = territoryById.get(assignment.territoryId);
                 if (territory) scopeRegionIds.add(territory.regionId);
+            } else if (assignment.regionId) {
+                scopeRegionIds.add(assignment.regionId);
+                (territoriesByRegion.get(assignment.regionId) ?? []).forEach((id) => scopeTerritoryIds.add(id));
             }
 
             if (assignment.distributorId) {
@@ -333,6 +328,7 @@ export async function getTsmDashboard(organizationId: string, filters: TsmDashbo
         const matchesTerritory = !filters.territoryId || scopeTerritoryIds.has(filters.territoryId);
         return {
             userId,
+            roleCode: userAssignments[0].role.code,
             user: userAssignments[0].membership.user,
             regionIds: [...scopeRegionIds],
             territoryIds: [...scopeTerritoryIds],
@@ -371,13 +367,19 @@ export async function getTsmDashboard(organizationId: string, filters: TsmDashbo
         }) : Promise.resolve([]),
         prisma.membershipRole.findMany({
             where: {
-                role: { code: "ASR" },
+                role: { code: { in: ["ASR", "MTSR"] } },
                 isActive: true,
                 startsAt: { lte: now },
                 OR: [{ endsAt: null }, { endsAt: { gt: now } }],
                 membership: { organizationId, isActive: true, user: { status: "ACTIVE" } },
             },
-            select: { regionId: true, territoryId: true, distributorId: true, membership: { select: { userId: true } } },
+            select: {
+                regionId: true,
+                territoryId: true,
+                distributorId: true,
+                role: { select: { code: true } },
+                membership: { select: { userId: true, user: { select: { displayName: true, phoneNumber: true } } } },
+            },
         }),
     ]);
 
@@ -394,15 +396,18 @@ export async function getTsmDashboard(organizationId: string, filters: TsmDashbo
         distributorOrders.push(order);
         ordersByDistributor.set(order.distributorId, distributorOrders);
     }
-    const asrsByTsm = new Map<string, Set<string>>();
+    // A GT TSM leads ASRs; an MT TSM leads MTSRs. Both are matched by the TSM's territory.
+    const teamByTsm = new Map<string, Array<{ id: string; name: string; phone: string | null }>>();
     for (const scope of tsmScopes) {
-        const attached = asrAssignments.filter((assignment) =>
-            Boolean(assignment.distributorId && scope.distributorIds.includes(assignment.distributorId)) ||
-            Boolean(assignment.territoryId && scope.territoryIds.includes(assignment.territoryId)) ||
-            Boolean(assignment.regionId && scope.regionIds.includes(assignment.regionId)),
+        const memberRole = scope.roleCode === "MT_TSM" ? "MTSR" : "ASR";
+        const attached = asrAssignments.filter((assignment) => assignment.role.code === memberRole && (assignment.territoryId
+            ? scope.territoryIds.includes(assignment.territoryId)
+            : Boolean(assignment.distributorId && scope.distributorIds.includes(assignment.distributorId))),
         );
-        asrsByTsm.set(scope.userId, new Set(attached.map(({ membership }) => membership.userId)));
+        const members = new Map(attached.map(({ membership }) => [membership.userId, { id: membership.userId, name: membership.user.displayName, phone: membership.user.phoneNumber }]));
+        teamByTsm.set(scope.userId, [...members.values()].sort((left, right) => left.name.localeCompare(right.name)));
     }
+    const distributorNameById = new Map(distributors.map(({ id, name }) => [id, name]));
 
     const rows = tsmScopes.map((scope) => {
         const scopedOrders = scope.distributorIds.flatMap((id) => ordersByDistributor.get(id) ?? []);
@@ -428,7 +433,11 @@ export async function getTsmDashboard(organizationId: string, filters: TsmDashbo
             region: regionNames.join(", ") || "Unassigned",
             territory: territoryNames.join(", ") || "Unassigned",
             distributors: scope.distributorIds.length,
-            asrs: asrsByTsm.get(scope.userId)?.size ?? 0,
+            asrs: teamByTsm.get(scope.userId)?.length ?? 0,
+            team: {
+                asrs: teamByTsm.get(scope.userId) ?? [],
+                distributors: scope.distributorIds.flatMap((id) => distributorNameById.has(id) ? [{ id, name: distributorNameById.get(id)! }] : []),
+            },
             revenue,
             processed,
             delayed,
@@ -455,7 +464,7 @@ export async function getTsmDashboard(organizationId: string, filters: TsmDashbo
             activeTsms: activeTsmCount,
             onlineNow: tsmScopes.filter(({ userId }) => onlineIds.has(userId)).length,
             distributors: scopedDistributorIds.length,
-            asrsAttached: new Set(tsmScopes.flatMap(({ userId }) => [...(asrsByTsm.get(userId) ?? [])])).size,
+            asrsAttached: new Set(tsmScopes.flatMap(({ userId }) => (teamByTsm.get(userId) ?? []).map(({ id }) => id))).size,
             revenue: totalRevenue,
             ordersProcessed: processedOrders,
             deliveryRate: processedOrders ? (deliveredOrders / processedOrders) * 100 : 0,

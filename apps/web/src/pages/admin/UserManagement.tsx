@@ -64,7 +64,8 @@ const departments = ["Administration", "IT", "Accounts", "Marketing", "Operation
 const roleOptions = [
   "Admin",
   "Regional Sales Manager",
-  "Territory Sales Manager",
+  "GT TSM",
+  "MT TSM",
   "Distributor",
   "Field Sales Agent",
   "Mtsr",
@@ -73,6 +74,27 @@ const roleOptions = [
   "Super Admin",
 ];
 const transportTypes = ["Company car", "Personal car", "Motorcycle", "Bicycle", "Walking", "None"];
+
+type TerritoryRule = "none" | "optional" | "required";
+// Roles that are tied to a region and/or territory. The region is required for all of them except admins.
+function getLocationRule(roleLabel: string): { regionRequired: boolean; territory: TerritoryRule; title: string; hint: string } | null {
+  switch (roleLabel) {
+    case "Admin":
+    case "Super Admin":
+      return { regionRequired: false, territory: "optional", title: "Region and territory", hint: "Optional. Admins can see every region; this is only their base." };
+    case "Regional Sales Manager":
+      return { regionRequired: true, territory: "none", title: "Region in charge", hint: "The region this manager is in charge of." };
+    case "GT TSM":
+    case "MT TSM":
+    case "Field Sales Agent":
+    case "Mtsr":
+      return { regionRequired: true, territory: "required", title: "Region and territory", hint: "Where this person works. It shows on their dashboard." };
+    case "Distributor":
+      return { regionRequired: true, territory: "optional", title: "Distributor coverage", hint: "This is where the distributor appears on the Distributors dashboard once approved." };
+    default:
+      return null;
+  }
+}
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("en-US").format(value);
@@ -190,6 +212,76 @@ function Bars({ data }: { data: UserManagementOverview["topActiveUsers"] }) {
   );
 }
 
+function RoleLocationFields({
+  regions,
+  rule,
+  defaultRegionId = "",
+  defaultTerritoryId = "",
+}: {
+  regions: UserManagementOverview["regions"];
+  rule: NonNullable<ReturnType<typeof getLocationRule>>;
+  defaultRegionId?: string;
+  defaultTerritoryId?: string;
+}) {
+  const [regionId, setRegionId] = useState(defaultRegionId);
+  const [territoryId, setTerritoryId] = useState(defaultTerritoryId);
+  const [addedTerritories, setAddedTerritories] = useState<Array<{ id: string; name: string; regionId: string }>>([]);
+  const [adding, setAdding] = useState(false);
+  const [newTerritory, setNewTerritory] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const territories = [
+    ...(regions.find((region) => region.id === regionId)?.territories ?? []),
+    ...addedTerritories.filter((territory) => territory.regionId === regionId),
+  ].filter((territory, index, all) => all.findIndex((item) => item.id === territory.id) === index);
+
+  async function addTerritory() {
+    setError(null);
+    try {
+      const response = await userManagementService.createTerritory(regionId, newTerritory);
+      setAddedTerritories((current) => [...current, response.data]);
+      setTerritoryId(response.data.id);
+      setNewTerritory("");
+      setAdding(false);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Could not add territory.");
+    }
+  }
+
+  return (
+    <fieldset className="space-y-3 rounded-lg border p-4">
+      <legend className="px-1 text-sm font-medium">{rule.title}</legend>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="space-y-1.5 text-sm">Region{rule.regionRequired && " *"}
+          <select name="regionId" className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm" required={rule.regionRequired} value={regionId} onChange={(event) => { setRegionId(event.target.value); setTerritoryId(""); setAdding(false); }}>
+            <option value="">Select region</option>
+            {regions.map((region) => <option key={region.id} value={region.id}>{region.name}</option>)}
+          </select>
+        </label>
+        {rule.territory !== "none" && (
+          <div className="space-y-1.5 text-sm">
+            <span>Territory{rule.territory === "required" && " *"}</span>
+            <div className="flex gap-2">
+              <select name="territoryId" className="h-9 min-w-0 flex-1 rounded-lg border border-input bg-background px-3 text-sm" required={rule.territory === "required"} disabled={!regionId} value={territoryId} onChange={(event) => setTerritoryId(event.target.value)}>
+                <option value="">{territories.length ? "Select territory" : "No territories yet"}</option>
+                {territories.map((territory) => <option key={territory.id} value={territory.id}>{territory.name}</option>)}
+              </select>
+              <Button type="button" variant="outline" size="icon" aria-label="Add territory" title="Add territory" disabled={!regionId} onClick={() => setAdding((current) => !current)}><Plus /></Button>
+            </div>
+          </div>
+        )}
+      </div>
+      {adding && rule.territory !== "none" && (
+        <div className="flex gap-2">
+          <Input aria-label="New territory name" placeholder="Territory name" value={newTerritory} onChange={(event) => setNewTerritory(event.target.value)} />
+          <Button type="button" size="sm" onClick={addTerritory}>Save</Button>
+        </div>
+      )}
+      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+      <p className="text-xs text-muted-foreground">{rule.hint}</p>
+    </fieldset>
+  );
+}
+
 function UserCreateDialog({
   overview,
   onClose,
@@ -200,6 +292,7 @@ function UserCreateDialog({
   onCreated: (department?: { id: string; name: string }) => void;
 }) {
   const [departmentId, setDepartmentId] = useState("");
+  const [roleLabel, setRoleLabel] = useState("");
   const [addingDepartment, setAddingDepartment] = useState(false);
   const [newDepartment, setNewDepartment] = useState("");
   const [saving, setSaving] = useState(false);
@@ -274,7 +367,7 @@ function UserCreateDialog({
             )}
           </div>
           <label className="space-y-1.5 text-sm">Role *
-            <select name="roleLabel" className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm" required defaultValue="">
+            <select name="roleLabel" className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm" required value={roleLabel} onChange={(event) => setRoleLabel(event.target.value)}>
               <option value="" disabled>Select role</option>{roleOptions.map((role) => <option key={role}>{role}</option>)}
             </select>
           </label>
@@ -284,6 +377,8 @@ function UserCreateDialog({
             </select>
           </label>
         </div>
+
+        {getLocationRule(roleLabel) && <RoleLocationFields key={getLocationRule(roleLabel)?.title} regions={overview.regions} rule={getLocationRule(roleLabel)!} />}
 
         <fieldset className="space-y-3 rounded-lg border p-4">
           <legend className="px-1 text-sm font-medium">Residential address</legend>
@@ -298,8 +393,8 @@ function UserCreateDialog({
         <fieldset className="space-y-3 rounded-lg border p-4">
           <legend className="px-1 text-sm font-medium">National ID</legend>
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="space-y-1.5 text-sm">ID Front *<Input name="nationalIdFront" type="file" accept="image/png,image/jpeg,image/pdf" required /></label>
-            <label className="space-y-1.5 text-sm">ID Back *<Input name="nationalIdBack" type="file" accept="image/png,image/jpeg,image/pdf" required /></label>
+            <label className="space-y-1.5 text-sm">ID Front *<Input name="nationalIdFront" type="file"             accept="image/png,image/jpeg,application/pdf" required /></label>
+                        <label className="space-y-1.5 text-sm">ID Back *<Input name="nationalIdBack" type="file" accept="image/png,image/jpeg,application/pdf" required /></label>
           </div>
           <p className="flex items-center gap-2 text-xs text-muted-foreground"><ShieldCheck className="size-4" />Files are stored privately and require admin permission to view.</p>
         </fieldset>
@@ -383,6 +478,7 @@ function UserEditDialog({
 }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [roleLabel, setRoleLabel] = useState(() => user.roleCodes.map((code) => ({ ADMIN: "Admin", SUPER_ADMIN: "Super Admin", RSM: "Regional Sales Manager", GT_TSM: "GT TSM", MT_TSM: "MT TSM", DISTRIBUTOR: "Distributor", ASR: "Field Sales Agent", MTSR: "Mtsr", HORECA: "Horeca", SUPPORT: "Support" }[code] ?? ""))[0] ?? "");
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -416,7 +512,7 @@ function UserEditDialog({
             </select>
           </label>
           <label className="space-y-1.5 text-sm">Role *
-            <select name="roleLabel" className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm" required defaultValue={user.roleCodes.map((code) => ({ ADMIN: "Admin", SUPER_ADMIN: "Super Admin", RSM: "Regional Sales Manager", GT_TSM: "Territory Sales Manager", MT_TSM: "Territory Sales Manager", DISTRIBUTOR: "Distributor", ASR: "Field Sales Agent", MTSR: "Mtsr", HORECA: "Horeca", SUPPORT: "Support" }[code] ?? ""))[0] ?? ""}>
+            <select name="roleLabel" className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm" required value={roleLabel} onChange={(event) => setRoleLabel(event.target.value)}>
               <option value="" disabled>Select role</option>{roleOptions.map((role) => <option key={role}>{role}</option>)}
             </select>
           </label>
@@ -426,6 +522,8 @@ function UserEditDialog({
             </select>
           </label>
         </div>
+
+        {getLocationRule(roleLabel) && <RoleLocationFields key={getLocationRule(roleLabel)?.title} regions={overview.regions} rule={getLocationRule(roleLabel)!} defaultRegionId={user.regionId} defaultTerritoryId={user.territoryId} />}
 
         <fieldset className="space-y-3 rounded-lg border p-4">
           <legend className="px-1 text-sm font-medium">Residential address</legend>
@@ -441,8 +539,8 @@ function UserEditDialog({
           <legend className="px-1 text-sm font-medium">National ID</legend>
           <p className="text-xs text-muted-foreground">Leave a file empty to keep the currently stored image.</p>
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="space-y-1.5 text-sm">National ID Front<Input name="nationalIdFront" type="file" accept="image/png,image/jpeg/pdf" /></label>
-            <label className="space-y-1.5 text-sm">National ID Back<Input name="nationalIdBack" type="file" accept="image/png,image/jpeg/pdf" /></label>
+            <label className="space-y-1.5 text-sm">National ID Front<Input             name="nationalIdFront" type="file" accept="image/png,image/jpeg,application/pdf" /></label>
+                        <label className="space-y-1.5 text-sm">National ID Back<Input name="nationalIdBack" type="file" accept="image/png,image/jpeg,application/pdf" /></label>
           </div>
         </fieldset>
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import {
   Activity,
   BarChart3,
@@ -63,6 +63,7 @@ export function TSMDashboardPage() {
   const [selectedPeriod, setSelectedPeriod] = useState<TsmDashboardPeriod>("THIS_WEEK");
   const [selectedRegionId, setSelectedRegionId] = useState("");
   const [selectedTerritoryId, setSelectedTerritoryId] = useState("");
+  const [expandedTsmId, setExpandedTsmId] = useState<string | null>(null);
   const [dashboard, setDashboard] = useState<TsmDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -201,15 +202,17 @@ export function TSMDashboardPage() {
               <table className="min-w-full text-left text-sm">
                 <thead className="bg-muted/50">
                   <tr>
-                    {["TSM", "REGION", "TERRITORY", "RANK", "DISTRIBUTORS", "ASRS", "REVENUE", "PROCESSED", "DELAYED", "STATUS"].map((column) => (
+                    {["TSM", "REGION", "TERRITORY", "RANK", "DISTRIBUTORS", "ASRS", "REVENUE", "PROCESSED", "DELAYED", "STATUS", "TEAM"].map((column) => (
                       <th key={column} className="px-4 py-3 font-medium text-muted-foreground">{column}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {dashboard?.rows.map((row) => {
+                    const expanded = expandedTsmId === row.id;
                     return (
-                      <tr key={row.id} className="border-t align-top">
+                      <Fragment key={row.id}>
+                      <tr className="border-t align-top">
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2 font-medium text-foreground">
                             {row.name}
@@ -232,7 +235,35 @@ export function TSMDashboardPage() {
                         <td className="px-4 py-3">
                           <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getStatusStyle(row.status)}`}>{row.status}</span>
                         </td>
+                        <td className="px-4 py-3">
+                          <Button type="button" variant="outline" size="sm" aria-expanded={expanded} onClick={() => setExpandedTsmId(expanded ? null : row.id)}>{expanded ? "Hide team" : "View team"}</Button>
+                        </td>
                       </tr>
+                      {expanded && (
+                        <tr className="bg-muted/20">
+                          <td colSpan={11} className="px-4 py-4">
+                            <div className="grid gap-6 md:grid-cols-2">
+                              <div>
+                                <h3 className="mb-2 text-sm font-semibold">Field agents ({row.team.asrs.length})</h3>
+                                {row.team.asrs.length ? (
+                                  <ul className="space-y-1 text-sm">
+                                    {row.team.asrs.map((member) => <li key={member.id} className="flex justify-between gap-3"><span>{member.name}</span><span className="text-muted-foreground">{member.phone ?? "--"}</span></li>)}
+                                  </ul>
+                                ) : <p className="text-sm text-muted-foreground">No field agents in this territory yet.</p>}
+                              </div>
+                              <div>
+                                <h3 className="mb-2 text-sm font-semibold">Distributors ({row.team.distributors.length})</h3>
+                                {row.team.distributors.length ? (
+                                  <ul className="space-y-1 text-sm">
+                                    {row.team.distributors.map((distributor) => <li key={distributor.id}>{distributor.name}</li>)}
+                                  </ul>
+                                ) : <p className="text-sm text-muted-foreground">No distributors in this territory yet.</p>}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      </Fragment>
                     );
                   })}
                 </tbody>

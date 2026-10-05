@@ -18,6 +18,8 @@ export interface ManagedUser {
   city: string;
   streetName: string;
   blockNumber: string;
+  regionId: string;
+  territoryId: string;
   status: "PENDING" | "ACTIVE" | "SUSPENDED" | "DISABLED" | "ARCHIVED";
   online: boolean;
   lastSeenAt: string | null;
@@ -54,6 +56,7 @@ export interface UserManagementOverview {
   onlineUserIds: string[];
   users: ManagedUser[];
   departments: Array<{ id: string; name: string }>;
+  regions: Array<{ id: string; name: string; territories: Array<{ id: string; name: string }> }>;
   roles: Array<{ id: string; code: string; name: string }>;
   loginAttempts: Array<{ userId: string | null; name: string; successful: boolean; createdAt: string }>;
   shift: { closeStart: string; closeEnd: string; reopenAt: string; updatedAt: string; updatedBy: string | null };
@@ -77,6 +80,13 @@ export const userManagementService = {
     return apiFetch<{ data: { id: string; name: string } }>("/api/v1/users/departments", {
       method: "POST",
       body: JSON.stringify({ name }),
+    });
+  },
+
+  async createTerritory(regionId: string, name: string) {
+    return apiFetch<{ data: { id: string; name: string; regionId: string } }>("/api/v1/users/territories", {
+      method: "POST",
+      body: JSON.stringify({ regionId, name }),
     });
   },
 
