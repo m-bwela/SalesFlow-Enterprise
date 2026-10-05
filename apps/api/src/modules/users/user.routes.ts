@@ -54,7 +54,7 @@ const updateUserSchema = createUserSchema.omit({
   departmentId: z.string().uuid(),
 });
 
-const statusSchema = z.object({ status: z.enum(["ACTIVE", "DISABLED", "SUSPENDED", "ARCHIVED"]) });
+const statusSchema = z.object({ status: z.enum(["PENDING", "ACTIVE", "DISABLED", "SUSPENDED", "ARCHIVED"]) });
 const departmentSchema = z.object({ name: z.string().trim().min(2).max(80) });
 const shiftSchema = z.object({
   closeStart: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/),

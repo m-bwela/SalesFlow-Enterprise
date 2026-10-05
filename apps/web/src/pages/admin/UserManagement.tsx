@@ -4,7 +4,6 @@ import {
   ArrowDownWideNarrow,
   Check,
   Clock3,
-  FileImage,
   LogOut,
   MoreHorizontal,
   Pencil,
@@ -504,7 +503,7 @@ export function UserManagementPage() {
     return users
       .filter((user) => {
         if (filter === "all") return user.status !== "ARCHIVED";
-        if (filter === "pending") return !user.emailVerified && user.status !== "ARCHIVED";
+        if (filter === "pending") return user.status === "PENDING";
         if (filter === "archived") return user.status === "ARCHIVED";
         if (filter === "online") return user.online;
         if (filter === "admin") return user.roleCodes.some((role) => ["ADMIN", "SUPER_ADMIN"].includes(role));
@@ -533,7 +532,7 @@ export function UserManagementPage() {
         const status = action === "activate" ? "ACTIVE" : action === "disable" ? "DISABLED" : action === "suspend" ? "SUSPENDED" : "ARCHIVED";
         await userManagementService.updateStatus(user.id, status);
       }
-      setNotice(`${user.name} updated.`);
+      setNotice(action === "activate" && user.status === "PENDING" ? `${user.name} approved. They can now sign in.` : `${user.name} updated.`);
       await refreshData(false);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Could not update this user.");
@@ -712,7 +711,7 @@ export function UserManagementPage() {
                             <td className="px-3 py-3 text-muted-foreground">{formatDateTime(user.createdAt)}</td>
                             <td className="px-3 py-3">{user.roles.join(", ") || "Unassigned"}</td>
                             <td className="px-3 py-3 text-muted-foreground">{user.department || "--"}</td>
-                            <td className="px-3 py-3"><span className={`inline-flex items-center gap-1.5 ${user.status === "ACTIVE" ? "text-emerald-600" : "text-muted-foreground"}`}><span className={`size-1.5 rounded-full ${user.status === "ACTIVE" ? "bg-emerald-500" : "bg-muted-foreground"}`} />{user.status === "ACTIVE" ? "Active" : "Inactive"}{user.locked && " - Locked"}</span></td>
+                            <td className="px-3 py-3"><span className={`inline-flex items-center gap-1.5 ${user.status === "ACTIVE" ? "text-emerald-600" : user.status === "PENDING" ? "text-amber-600" : "text-muted-foreground"}`}><span className={`size-1.5 rounded-full ${user.status === "ACTIVE" ? "bg-emerald-500" : user.status === "PENDING" ? "bg-amber-500" : "bg-muted-foreground"}`} />{user.status === "ACTIVE" ? "Active" : user.status === "PENDING" ? "Pending approval" : "Inactive"}{user.locked && " - Locked"}</span></td>
                             <td className="px-3 py-3">{user.appAccess ? <span className="text-emerald-600">Active</span> : <span className="text-muted-foreground">No Access</span>}</td>
                             <td className="px-3 py-3">
                               {user.online ? (
@@ -732,12 +731,11 @@ export function UserManagementPage() {
                                 <DropdownMenuTrigger render={<Button type="button" variant="ghost" size="icon" aria-label={`Actions for ${user.name}`}><MoreHorizontal /></Button>} />
                                 <DropdownMenuContent align="end">
                                   <DropdownMenuItem onClick={() => setEditingUser(user)}><Pencil />Edit profile</DropdownMenuItem>
-                                  {user.status === "ACTIVE" ? <DropdownMenuItem onClick={() => void runUserAction(user, "disable")}>Disable user</DropdownMenuItem> : <DropdownMenuItem onClick={() => void runUserAction(user, "activate")}>Activate user</DropdownMenuItem>}
-                                  {!user.locked ? <DropdownMenuItem onClick={() => void runUserAction(user, "suspend")}>Suspend user</DropdownMenuItem> : <DropdownMenuItem onClick={() => void runUserAction(user, "unlock")}>Unlock account</DropdownMenuItem>}
+                                  {user.status === "PENDING" && <DropdownMenuItem onClick={() => void runUserAction(user, "activate")}><Check />Approve user</DropdownMenuItem>}
+                                  {user.status === "PENDING" ? null : user.status === "ACTIVE" ? <DropdownMenuItem onClick={() => void runUserAction(user, "disable")}>Disable user</DropdownMenuItem> : <DropdownMenuItem onClick={() => void runUserAction(user, "activate")}>Activate user</DropdownMenuItem>}
+                                  {user.status === "PENDING" ? null : !user.locked ? <DropdownMenuItem onClick={() => void runUserAction(user, "suspend")}>Suspend user</DropdownMenuItem> : <DropdownMenuItem onClick={() => void runUserAction(user, "unlock")}>Unlock account</DropdownMenuItem>}
                                   {user.online && <DropdownMenuItem onClick={() => void runUserAction(user, "checkout")}>Log out user</DropdownMenuItem>}
                                   {user.status !== "ARCHIVED" && <DropdownMenuItem variant="destructive" onClick={() => void runUserAction(user, "archive")}>Archive user</DropdownMenuItem>}
-                                  {user.hasNationalIdFront && <DropdownMenuItem onClick={() => window.open(userManagementService.identityDocumentUrl(user.id, "front"), "_blank", "noopener,noreferrer")}><FileImage />View ID front</DropdownMenuItem>}
-                                  {user.hasNationalIdBack && <DropdownMenuItem onClick={() => window.open(userManagementService.identityDocumentUrl(user.id, "back"), "_blank", "noopener,noreferrer")}><FileImage />View ID back</DropdownMenuItem>}
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </td>

@@ -228,8 +228,8 @@ export function OutletsPage() {
           </Card>
 
           <section className="grid gap-5 xl:grid-cols-2">
-            <RevenueTable title="Top ten Outlets By Revenue" rows={dashboard?.topTen ?? []} />
-            <RevenueTable title="Bottom 10 Outlets By Revenue" rows={dashboard?.bottomTen ?? []} />
+            <RevenueTable title="Top 10 Outlets By Revenue" rows={dashboard?.topTen ?? []} />
+            <RevenueTable title="Bottom 10 Outlets by Revenue" rows={dashboard?.bottomTen ?? []} />
           </section>
 
           <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">

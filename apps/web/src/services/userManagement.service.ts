@@ -18,7 +18,7 @@ export interface ManagedUser {
   city: string;
   streetName: string;
   blockNumber: string;
-  status: "ACTIVE" | "SUSPENDED" | "DISABLED" | "ARCHIVED";
+  status: "PENDING" | "ACTIVE" | "SUSPENDED" | "DISABLED" | "ARCHIVED";
   online: boolean;
   lastSeenAt: string | null;
   appAccess: boolean;

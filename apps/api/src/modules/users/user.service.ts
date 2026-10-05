@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { prisma } from "@salesflow/database";
-import type { RoleCode, ScopeType, UserStatus } from "@prisma/client";
+import type { Prisma, RoleCode, ScopeType, UserStatus } from "@prisma/client";
 import { AppError } from "../../errors/app-error.js";
 
 const PRIVATE_ID_DIRECTORY = resolve(process.cwd(), "private-storage", "national-ids");
@@ -324,7 +324,7 @@ export async function createManagedUser(input: {
 					nationalIdFrontPath,
 					nationalIdBackPath,
 					passwordHash,
-					status: "ACTIVE",
+					status: "PENDING",
 				},
 				select: { id: true, email: true, displayName: true },
 			});
@@ -474,8 +474,50 @@ export async function changeUserStatus(userId: string, organizationId: string, s
 			const revokedAt = new Date();
 			await transaction.session.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt, lastSeenAt: revokedAt } });
 		}
+		await syncDistributorRecord(transaction, userId, organizationId, status);
 		return updatedUser;
 	});
+}
+
+// Keeps the Distributor row (shown on the Distributors dashboard) in step with a user holding the DISTRIBUTOR role.
+async function syncDistributorRecord(transaction: Prisma.TransactionClient, userId: string, organizationId: string, status: UserStatus) {
+	const membershipRole = await transaction.membershipRole.findFirst({
+		where: { isActive: true, role: { code: "DISTRIBUTOR" }, membership: { userId, organizationId, isActive: true } },
+		select: { id: true, distributorId: true, membership: { select: { user: { select: { displayName: true, phoneNumber: true } } } } },
+	});
+	if (!membershipRole) return;
+
+	const isActive = status === "ACTIVE";
+	if (membershipRole.distributorId) {
+		await transaction.distributor.update({ where: { id: membershipRole.distributorId }, data: { isActive } });
+		return;
+	}
+	if (!isActive) return;
+
+	const region = await transaction.region.upsert({
+		where: { organizationId_code: { organizationId, code: `UNASSIGNED-${organizationId.slice(0, 8)}` } },
+		update: {},
+		create: { organizationId, name: "Unassigned", code: `UNASSIGNED-${organizationId.slice(0, 8)}` },
+		select: { id: true },
+	});
+	const territory = await transaction.territory.upsert({
+		where: { regionId_code: { regionId: region.id, code: "UNASSIGNED" } },
+		update: {},
+		create: { regionId: region.id, name: "Unassigned", code: "UNASSIGNED" },
+		select: { id: true },
+	});
+	const { user } = membershipRole.membership;
+	const distributor = await transaction.distributor.create({
+		data: {
+			territoryId: territory.id,
+			name: user.displayName,
+			code: `DST-${userId.replace(/-/g, "").slice(0, 8).toUpperCase()}`,
+			phoneNumber: user.phoneNumber,
+			isActive: true,
+		},
+		select: { id: true },
+	});
+	await transaction.membershipRole.update({ where: { id: membershipRole.id }, data: { distributorId: distributor.id } });
 }
 
 export async function createDepartment(organizationId: string, name: string) {

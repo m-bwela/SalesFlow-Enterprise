@@ -76,6 +76,9 @@ export class AuthService {
 
         if(user.status !== "ACTIVE") {
             await recordLoginAttempt(email, user.id, false, undefined);
+            if (user.status === "PENDING") {
+                throw new AppError("ACCOUNT_PENDING_APPROVAL", 403, "Your account is awaiting admin approval.");
+            }
             throw new AppError("ACCOUNT_UNAVAILABLE", 403, "This account is not available.");
         }
 
