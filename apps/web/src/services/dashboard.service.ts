@@ -169,6 +169,57 @@ export interface TsmDashboardData {
     }>;
 }
 
+export type DistributorDashboardPeriod = "1D" | "1W" | "1M" | "3M" | "6M" | "YTD" | "1Y" | "ALL";
+
+export interface DistributorDashboardRow {
+    id: string;
+    name: string;
+    code: string;
+    phone: string | null;
+    region: string;
+    territory: string;
+    active: boolean;
+    revenue: number;
+    previousRevenue: number;
+    trendPercent: number | null;
+    trend: "UP" | "DOWN" | "FLAT" | null;
+    orders: number;
+    volume: number;
+    warehouses: number;
+}
+
+export interface DistributorDashboardData {
+    period: DistributorDashboardPeriod;
+    updatedAt: string;
+    currency: string;
+    stats: {
+        totalDistributors: number;
+        activeDistributors: number;
+        inactiveDistributors: number;
+        revenue: number;
+        orders: number;
+        volume: number;
+        averageRevenuePerDistributor: number;
+        averageOrdersPerDistributor: number;
+        stocksAtHand: number | null;
+        healthy: number | null;
+        warning: number | null;
+        atRisk: number | null;
+    };
+    stockTrackingAvailable: boolean;
+    revenueTrend: Array<{ bucket: string; revenue: number }>;
+    topTen: DistributorDashboardRow[];
+    bottomTen: DistributorDashboardRow[];
+    distributors: DistributorDashboardRow[];
+}
+
+export async function getDistributorDashboard(period: DistributorDashboardPeriod) {
+    const response = await apiFetch<{ data: DistributorDashboardData }>(
+        `/api/v1/dashboard/distributors?period=${encodeURIComponent(period)}`,
+    );
+    return response.data;
+}
+
 export async function getTsmDashboard(filters: {
     period: TsmDashboardPeriod;
     regionId?: string;

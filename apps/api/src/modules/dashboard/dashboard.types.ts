@@ -30,6 +30,8 @@ export interface TsmDashboardFilters {
     territoryId?: string;
 }
 
+export type DistributorDashboardPeriod = Exclude<DashboardFilters["period"], "LIVE">;
+
 export type AsrDashboardPeriod =
     | "TODAY"
     | "YESTERDAY"

@@ -2,7 +2,7 @@ import { Router } from "express";
 
 import { authenticate } from "../auth/auth.middleware.js"
 import { requirePermission } from "../auth/authorization.js";
-import { getAdminDashboard, getAsrDashboard, getOutletDashboard, getTsmDashboard } from "./dashboard.service.js";
+import { getAdminDashboard, getAsrDashboard, getDistributorDashboard, getOutletDashboard, getTsmDashboard } from "./dashboard.service.js";
 
 import { z } from "zod";
 
@@ -46,6 +46,32 @@ const tsmDashboardFilterSchema = z.object({
     regionId: z.string().uuid().optional(),
     territoryId: z.string().uuid().optional(),
 });
+
+const distributorDashboardFilterSchema = z.object({
+    period: z.enum(["1D", "1W", "1M", "3M", "6M", "YTD", "1Y", "ALL"]).default("1M"),
+});
+
+router.get(
+    "/distributors",
+    authenticate,
+    requirePermission("dashboard.view"),
+    async (req, res, next) => {
+        try {
+            const membership = res.locals.membership;
+            if (!membership) {
+                return res.status(403).json({
+                    error: { code: "FORBIDDEN", message: "No active organization membership found." },
+                });
+            }
+
+            const filters = distributorDashboardFilterSchema.parse(req.query);
+            const dashboard = await getDistributorDashboard(membership.organizationId, filters.period);
+            return res.json({ data: dashboard });
+        } catch (error) {
+            return next(error);
+        }
+    },
+);
 
 router.get(
     "/outlets",

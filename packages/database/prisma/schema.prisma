@@ -284,6 +284,7 @@ model Distributor {
   territoryId String   @db.Uuid
   name        String
   code        String
+  phoneNumber String?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

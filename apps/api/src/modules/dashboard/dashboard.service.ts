@@ -1,6 +1,6 @@
 import { prisma } from "@salesflow/database";
 
-import type { AsrDashboardPeriod, DashboardFilters, TsmDashboardFilters, TsmDashboardPeriod } from "./dashboard.types.js";
+import type { AsrDashboardPeriod, DashboardFilters, DistributorDashboardPeriod, TsmDashboardFilters, TsmDashboardPeriod } from "./dashboard.types.js";
 
 const PERIOD_DURATIONS: Record<DashboardFilters["period"], number> = {
     LIVE: 5 * 60 * 1000,
@@ -46,6 +46,155 @@ function countByTimeBucket(records: { createdAt: Date }[], start: Date, end: Dat
 function getBucketIndex(date: Date, start: Date, end: Date, bucketCount: number) {
     const position = (date.getTime() - start.getTime()) / Math.max(end.getTime() - start.getTime(), 1);
     return Math.min(Math.floor(position * bucketCount), bucketCount - 1);
+}
+
+export async function getDistributorDashboard(organizationId: string, period: DistributorDashboardPeriod) {
+    const now = new Date();
+    const periodStart = getPeriodStart(period, now);
+    const periodDuration = now.getTime() - periodStart.getTime();
+    const previousStart = period === "ALL" ? null : new Date(periodStart.getTime() - periodDuration);
+    const distributors = await prisma.distributor.findMany({
+        where: { territory: { region: { organizationId } } },
+        orderBy: { name: "asc" },
+        select: {
+            id: true,
+            code: true,
+            name: true,
+            phoneNumber: true,
+            isActive: true,
+            territory: {
+                select: {
+                    id: true,
+                    name: true,
+                    region: { select: { id: true, name: true } },
+                },
+            },
+            warehouses: { where: { isActive: true }, select: { id: true } },
+        },
+    });
+
+    const distributorIds = distributors.map(({ id }) => id);
+    const [periodOrders, previousOrders] = distributorIds.length
+        ? await Promise.all([
+            prisma.salesOrder.findMany({
+                where: {
+                    organizationId,
+                    distributorId: { in: distributorIds },
+                    orderDate: { gte: periodStart, lte: now },
+                    currency: "KES",
+                    status: { notIn: ["DRAFT", "CANCELLED"] },
+                },
+                select: {
+                    distributorId: true,
+                    orderDate: true,
+                    items: { select: { quantity: true, unitPrice: true } },
+                },
+            }),
+            previousStart
+                ? prisma.salesOrder.findMany({
+                    where: {
+                        organizationId,
+                        distributorId: { in: distributorIds },
+                        orderDate: { gte: previousStart, lt: periodStart },
+                        currency: "KES",
+                        status: { notIn: ["DRAFT", "CANCELLED"] },
+                    },
+                    select: {
+                        distributorId: true,
+                        items: { select: { quantity: true, unitPrice: true } },
+                    },
+                })
+                : Promise.resolve([]),
+        ])
+        : [[], []];
+
+    const currentTotals = new Map<string, { revenue: number; orders: number; volume: number }>();
+    const previousRevenue = new Map<string, number>();
+    const revenueTrend = Array.from({ length: 12 }, (_, index) => {
+        const intervalEnd = new Date(periodStart.getTime() + ((now.getTime() - periodStart.getTime()) * (index + 1)) / 12);
+        return {
+            bucket: new Intl.DateTimeFormat("en-GB", {
+                day: "2-digit",
+                month: "short",
+                timeZone: "Africa/Nairobi",
+            }).format(intervalEnd),
+            revenue: 0,
+        };
+    });
+
+    for (const order of periodOrders) {
+        const totals = currentTotals.get(order.distributorId) ?? { revenue: 0, orders: 0, volume: 0 };
+        totals.orders += 1;
+        const orderRevenue = order.items.reduce((sum, item) => {
+            const quantity = Number(item.quantity);
+            totals.volume += quantity;
+            return sum + quantity * Number(item.unitPrice);
+        }, 0);
+        totals.revenue += orderRevenue;
+        currentTotals.set(order.distributorId, totals);
+        const bucketIndex = getBucketIndex(order.orderDate, periodStart, now, revenueTrend.length);
+        revenueTrend[bucketIndex].revenue += orderRevenue;
+    }
+
+    for (const order of previousOrders) {
+        const orderRevenue = order.items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.unitPrice), 0);
+        previousRevenue.set(order.distributorId, (previousRevenue.get(order.distributorId) ?? 0) + orderRevenue);
+    }
+
+    const rows = distributors.map((distributor) => {
+        const totals = currentTotals.get(distributor.id) ?? { revenue: 0, orders: 0, volume: 0 };
+        const previous = previousRevenue.get(distributor.id);
+        const trendPercent = previous && previous > 0 ? ((totals.revenue - previous) / previous) * 100 : null;
+        const trend = trendPercent === null ? null : trendPercent > 0 ? "UP" : trendPercent < 0 ? "DOWN" : "FLAT";
+
+        return {
+            id: distributor.id,
+            name: distributor.name,
+            code: distributor.code,
+            phone: distributor.phoneNumber,
+            region: distributor.territory.region.name,
+            territory: distributor.territory.name,
+            active: distributor.isActive,
+            revenue: totals.revenue,
+            previousRevenue: previous ?? 0,
+            trendPercent,
+            trend,
+            orders: totals.orders,
+            volume: totals.volume,
+            warehouses: distributor.warehouses.length,
+        };
+    });
+
+    const activeDistributors = distributors.filter(({ isActive }) => isActive).length;
+    const totalRevenue = rows.reduce((total, row) => total + row.revenue, 0);
+    const totalOrders = rows.reduce((total, row) => total + row.orders, 0);
+    const totalVolume = rows.reduce((total, row) => total + row.volume, 0);
+    const sortedByRevenue = [...rows].sort((left, right) => right.revenue - left.revenue || left.name.localeCompare(right.name));
+
+    return {
+        period,
+        updatedAt: now.toISOString(),
+        currency: "KES",
+        stats: {
+            totalDistributors: distributors.length,
+            activeDistributors,
+            inactiveDistributors: distributors.length - activeDistributors,
+            revenue: totalRevenue,
+            orders: totalOrders,
+            volume: totalVolume,
+            averageRevenuePerDistributor: activeDistributors ? totalRevenue / activeDistributors : 0,
+            averageOrdersPerDistributor: activeDistributors ? totalOrders / activeDistributors : 0,
+            stocksAtHand: null,
+            healthy: null,
+            warning: null,
+            atRisk: null,
+        },
+        stockTrackingAvailable: false,
+        revenueTrend,
+        topTen: sortedByRevenue.slice(0, 10),
+        bottomTen: [...rows].sort((left, right) => left.revenue - right.revenue || left.name.localeCompare(right.name)).slice(0, 10),
+        distributors: rows,
+    };
 }
 
 function getTsmPeriodRange(period: TsmDashboardPeriod, now: Date) {
