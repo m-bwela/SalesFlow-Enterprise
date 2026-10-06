@@ -50,6 +50,7 @@ function orderRevenue(items: Array<{ quantity: Prisma.Decimal; unitPrice: Prisma
         volume += quantity;
     }
     return { revenue, volume };
+    // If the company later wants discounts or VAT or Promotions, change it here only.
 }
 
 // Splits the period into equal intervals and labels them with a time (short periods) or a date (long ones).
