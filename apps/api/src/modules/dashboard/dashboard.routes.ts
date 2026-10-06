@@ -3,6 +3,7 @@ import { Router } from "express";
 import { authenticate } from "../auth/auth.middleware.js"
 import { requirePermission } from "../auth/authorization.js";
 import { getAdminDashboard, getAsrDashboard, getDistributorDashboard, getOutletDashboard, getTsmDashboard } from "./dashboard.service.js";
+import { getModernTradeDashboard } from "./modern-trade.service.js";
 
 import { z } from "zod";
 
@@ -50,6 +51,35 @@ const tsmDashboardFilterSchema = z.object({
 const distributorDashboardFilterSchema = z.object({
     period: z.enum(["1D", "1W", "1M", "3M", "6M", "YTD", "1Y", "ALL"]).default("1M"),
 });
+
+const modernTradeFilterSchema = z.object({
+    period: z.enum(["LIVE", "1H", "6H", "1D", "1W", "1M", "3M", "6M", "YTD", "1Y", "2Y", "3Y", "ALL"]).default("1M"),
+    regionId: z.string().uuid().optional(),
+    territoryId: z.string().uuid().optional(),
+    mtsrId: z.string().uuid().optional(),
+});
+
+router.get(
+    "/modern-trade",
+    authenticate,
+    requirePermission("dashboard.view"),
+    async (req, res, next) => {
+        try {
+            const membership = res.locals.membership;
+            if (!membership) {
+                return res.status(403).json({
+                    error: { code: "FORBIDDEN", message: "No active organization membership found." },
+                });
+            }
+
+            const filters = modernTradeFilterSchema.parse(req.query);
+            const dashboard = await getModernTradeDashboard(membership.organizationId, filters);
+            return res.json({ data: dashboard });
+        } catch (error) {
+            return next(error);
+        }
+    },
+);
 
 router.get(
     "/distributors",

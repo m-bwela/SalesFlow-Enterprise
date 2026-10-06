@@ -127,8 +127,8 @@ export const adminNavigation: NavigationGroup[] = [
         title: "Modern Trade",
         items: [
             {
-                title: "MT Performance",
-                url: "/admin/mordern-trade/performance",
+                title: "Modern Trade",
+                url: "/admin/modern-trade",
                 icon: BarChart3,
             },
             {

@@ -32,6 +32,28 @@ export interface TsmDashboardFilters {
 
 export type DistributorDashboardPeriod = Exclude<DashboardFilters["period"], "LIVE">;
 
+export type ModernTradePeriod =
+    | "LIVE"
+    | "1H"
+    | "6H"
+    | "1D"
+    | "1W"
+    | "1M"
+    | "3M"
+    | "6M"
+    | "YTD"
+    | "1Y"
+    | "2Y"
+    | "3Y"
+    | "ALL";
+
+export interface ModernTradeFilters {
+    period: ModernTradePeriod;
+    regionId?: string;
+    territoryId?: string;
+    mtsrId?: string;
+}
+
 export type AsrDashboardPeriod =
     | "TODAY"
     | "YESTERDAY"

@@ -53,6 +53,11 @@ enum OutletType {
   OTHER
 }
 
+enum OrderSupplySource {
+  DISTRIBUTOR
+  FACTORY
+}
+
 enum RoleCode {
   ADMIN
   SUPER_ADMIN
@@ -377,6 +382,7 @@ model SalesOrder {
   deliveredAt      DateTime?
   cancelledAt      DateTime?
   paymentMethod    String?
+  supplySource     OrderSupplySource @default(DISTRIBUTOR)
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
@@ -391,6 +397,7 @@ model SalesOrder {
   @@index([distributorId, orderDate])
   @@index([outletId, orderDate])
   @@index([status, deliveredAt])
+  @@index([supplySource, orderDate])
   @@map("sales_orders")
 }
 

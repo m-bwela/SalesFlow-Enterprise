@@ -224,6 +224,65 @@ export async function getDistributorDashboard(period: DistributorDashboardPeriod
     return response.data;
 }
 
+export type ModernTradePeriod = "LIVE" | "1H" | "6H" | "1D" | "1W" | "1M" | "3M" | "6M" | "YTD" | "1Y" | "2Y" | "3Y" | "ALL";
+
+export interface ModernTradeRow {
+    id: string;
+    rank: number;
+    name: string;
+    email: string;
+    phone: string | null;
+    status: string;
+    online: boolean;
+    region: string;
+    territory: string;
+    revenue: number;
+    volume: number;
+    outlets: number;
+    outletsOrdering: number;
+    orders: number;
+    factoryOrders: number;
+}
+
+export interface ModernTradeData {
+    period: ModernTradePeriod;
+    updatedAt: string;
+    currency: string;
+    stats: {
+        totalMtsrs: number;
+        activeMtsrs: number;
+        onlineNow: number;
+        revenue: number;
+        orders: number;
+        volume: number;
+        outlets: number;
+        outletsOrdering: number;
+        factoryOrders: number;
+        factoryShare: number;
+        averageRevenuePerMtsr: number;
+        averageOrderValue: number;
+    };
+    options: {
+        regions: Array<{ id: string; name: string; territories: Array<{ id: string; name: string }> }>;
+        mtsrs: Array<{ id: string; name: string; regionId: string | null; territoryId: string | null }>;
+    };
+    rows: ModernTradeRow[];
+}
+
+export async function getModernTradeDashboard(filters: {
+    period: ModernTradePeriod;
+    regionId?: string;
+    territoryId?: string;
+    mtsrId?: string;
+}) {
+    const params = new URLSearchParams({ period: filters.period });
+    if (filters.regionId) params.set("regionId", filters.regionId);
+    if (filters.territoryId) params.set("territoryId", filters.territoryId);
+    if (filters.mtsrId) params.set("mtsrId", filters.mtsrId);
+    const response = await apiFetch<{ data: ModernTradeData }>(`/api/v1/dashboard/modern-trade?${params.toString()}`);
+    return response.data;
+}
+
 export async function getTsmDashboard(filters: {
     period: TsmDashboardPeriod;
     regionId?: string;

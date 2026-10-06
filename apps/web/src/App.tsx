@@ -13,7 +13,7 @@ import { AssetInventoryPage } from "./pages/admin/AssetInventoryPage";
 import { AssetsPage } from "./pages/admin/AssetsPage";
 import { InventoryPage } from "./pages/admin/InventoryPage";
 import { ModernTradeOutletsPage } from "./pages/admin/ModernTradeOutletsPage";
-import { ModernTradePerformancePage } from "./pages/admin/ModernTradePerformancePage";
+import { ModernTradePage } from "./pages/admin/ModernTradePage";
 import { ModernTradeSalesPage } from "./pages/admin/ModernTradeSalesPage";
 import { ModernTradeTSMPage } from "./pages/admin/ModernTradeTSMPage";
 import { OnlineUsersPage } from "./pages/admin/OnlineUsersPage";
@@ -108,7 +108,7 @@ function App() {
             <Route path="assets" element={<AssetsPage />} />
             <Route path="asset-inventory" element={<AssetInventoryPage />} />
             <Route path="inventory" element={<InventoryPage />} />
-            <Route path="modern-trade/performance" element={<ModernTradePerformancePage />} />
+            <Route path="modern-trade" element={<ModernTradePage />} />
             <Route path="modern-trade/tsm" element={<ModernTradeTSMPage />} />
             <Route path="modern-trade/outlets" element={<ModernTradeOutletsPage />} />
             <Route path="modern-trade/sales" element={<ModernTradeSalesPage />} />
