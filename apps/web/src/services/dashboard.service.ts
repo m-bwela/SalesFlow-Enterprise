@@ -266,6 +266,7 @@ export interface ModernTradeData {
         regions: Array<{ id: string; name: string; territories: Array<{ id: string; name: string }> }>;
         mtsrs: Array<{ id: string; name: string; regionId: string | null; territoryId: string | null }>;
     };
+    revenueTrend: Array<{ bucket: string; revenue: number; orders: number }>;
     rows: ModernTradeRow[];
 }
 

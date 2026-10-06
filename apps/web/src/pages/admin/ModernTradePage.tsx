@@ -12,6 +12,16 @@ import {
   Wifi,
 } from "lucide-react";
 
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { AppShell } from "@/components/layout/AppShell";
@@ -184,6 +194,23 @@ export function ModernTradePage() {
           <section aria-label="Modern trade KPIs" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-12">
             {kpis.map((kpi, index) => <div key={kpi.title} className={kpiSpans[index]}><KpiCard {...kpi} /></div>)}
           </section>
+
+          <Card>
+            <CardHeader><CardTitle>Revenue Trend</CardTitle><p className="text-sm text-muted-foreground">Revenue per interval in the selected reporting period</p></CardHeader>
+            <CardContent>
+              {dashboard?.revenueTrend.some(({ revenue }) => revenue > 0) ? (
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={dashboard.revenueTrend} margin={{ top: 8, right: 12, left: 8, bottom: 4 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="bucket" tickLine={false} axisLine={false} />
+                    <YAxis tickFormatter={(value) => formatCurrencyCompact(Number(value), currency)} tickLine={false} axisLine={false} width={92} />
+                    <Tooltip formatter={(value, name) => name === "Revenue" ? formatCurrency(Number(value), currency) : formatNumber(Number(value))} />
+                    <Bar dataKey="revenue" name="Revenue" fill="#168f72" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : <p className="py-12 text-center text-sm text-muted-foreground">No modern trade revenue recorded for this period.</p>}
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>

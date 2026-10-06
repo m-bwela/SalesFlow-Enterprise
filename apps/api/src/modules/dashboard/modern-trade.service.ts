@@ -7,6 +7,7 @@ const EAT_OFFSET_MS = 3 * 60 * 60 * 1000;
 const ONLINE_WINDOW_MS = 5 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
+const TREND_BUCKETS = 12;
 const UNASSIGNED = "Unassigned";
 
 // How far back each rolling period reaches. LIVE, YTD and ALL are handled separately in getPeriodStart.
@@ -49,6 +50,20 @@ function orderRevenue(items: Array<{ quantity: Prisma.Decimal; unitPrice: Prisma
         volume += quantity;
     }
     return { revenue, volume };
+}
+
+// Splits the period into equal intervals and labels them with a time (short periods) or a date (long ones).
+function buildRevenueTrend(start: Date, end: Date) {
+    const span = Math.max(end.getTime() - start.getTime(), 1);
+    const shortPeriod = span <= 2 * DAY_MS;
+    const formatter = new Intl.DateTimeFormat("en-GB", shortPeriod
+        ? { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Africa/Nairobi" }
+        : { day: "2-digit", month: "short", year: span > 400 * DAY_MS ? "2-digit" : undefined, timeZone: "Africa/Nairobi" });
+    return Array.from({ length: TREND_BUCKETS }, (_, index) => ({
+        bucket: formatter.format(new Date(start.getTime() + (span * index) / TREND_BUCKETS)),
+        revenue: 0,
+        orders: 0,
+    }));
 }
 
 export async function getModernTradeDashboard(organizationId: string, filters: ModernTradeFilters) {
@@ -132,6 +147,7 @@ export async function getModernTradeDashboard(organizationId: string, filters: M
                 select: {
                     createdById: true,
                     outletId: true,
+                    orderDate: true,
                     supplySource: true,
                     items: { select: { quantity: true, unitPrice: true } },
                 },
@@ -164,6 +180,19 @@ export async function getModernTradeDashboard(organizationId: string, filters: M
         repTotals.outletIds.add(order.outletId);
         allOrderedOutletIds.add(order.outletId);
         totals.set(order.createdById, repTotals);
+    }
+
+    // "ALL" starts at 1970, which would squash every order into the last bar, so start at the first real order instead.
+    const trendStart = filters.period === "ALL"
+        ? new Date(Math.min(now.getTime() - DAY_MS, ...orders.map(({ orderDate }) => orderDate.getTime())))
+        : periodStart;
+    const revenueTrend = buildRevenueTrend(trendStart, now);
+    const trendSpan = Math.max(now.getTime() - trendStart.getTime(), 1);
+    for (const order of orders) {
+        const position = (order.orderDate.getTime() - trendStart.getTime()) / trendSpan;
+        const index = Math.min(Math.max(Math.floor(position * TREND_BUCKETS), 0), TREND_BUCKETS - 1);
+        revenueTrend[index].revenue += orderRevenue(order.items).revenue;
+        revenueTrend[index].orders += 1;
     }
 
     const rows = reps.map((rep) => {
@@ -226,6 +255,7 @@ export async function getModernTradeDashboard(organizationId: string, filters: M
                 .map(({ id, name, regionId, territoryId }) => ({ id, name, regionId, territoryId }))
                 .sort((left, right) => left.name.localeCompare(right.name)),
         },
+        revenueTrend,
         rows,
     };
 }
