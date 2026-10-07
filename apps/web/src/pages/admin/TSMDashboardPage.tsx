@@ -164,7 +164,7 @@ export function TSMDashboardPage() {
                   }}
                   className="w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground outline-none"
                 >
-                  <option value="">All regions</option>
+                  <option value="">-- All regions --</option>
                   {dashboard?.regions.map((region) => <option key={region.id} value={region.id}>{region.name}</option>)}
                 </select>
               </label>
@@ -176,7 +176,7 @@ export function TSMDashboardPage() {
                   onChange={(event) => setSelectedTerritoryId(event.target.value)}
                   className="w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground outline-none"
                 >
-                  <option value="">All territories</option>
+                  <option value="">-- All territories --</option>
                   {visibleTerritories.map((territory) => <option key={territory.id} value={territory.id}>{territory.name}</option>)}
                 </select>
               </label>
