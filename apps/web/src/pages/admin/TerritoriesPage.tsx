@@ -190,7 +190,7 @@ export function TerritoriesPage() {
               <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
                 <label className="space-y-1.5 text-sm">Region *
                   <select className={selectClass} required value={regionId} onChange={(event) => { setRegionId(event.target.value); setTerritoryId(""); setAddingNew(false); setNewName(""); }}>
-                    <option value="">Select Region</option>
+                    <option value="">-- Select Region --</option>
                     {regions.map((region) => <option key={region.id} value={region.id}>{region.name}</option>)}
                   </select>
                 </label>
@@ -200,7 +200,7 @@ export function TerritoriesPage() {
                   {!addingNew ? (
                     <div className="flex gap-2">
                       <select className={selectClass} disabled={!regionId} value={territoryId} onChange={(event) => setTerritoryId(event.target.value)}>
-                        <option value="">{territoriesInRegion.length ? "Select territory" : "No territories yet"}</option>
+                        <option value="">{territoriesInRegion.length ? "-- Select territory --" : "-- No Territories Yet --"}</option>
                         {territoriesInRegion.map((territory) => <option key={territory.id} value={territory.id}>{territory.name}{territory.shortCode ? ` (${territory.shortCode})` : ""}</option>)}
                       </select>
                       <Button type="button" variant="outline" size="icon" aria-label="Add a new territory name" title="Add a new territory name" disabled={!regionId} onClick={() => { setAddingNew(true); setTerritoryId(""); }}><Plus /></Button>
@@ -213,8 +213,8 @@ export function TerritoriesPage() {
                   )}
                 </div>
 
-                <label className="space-y-1.5 text-sm">Code *<Input readOnly value={previewCodeValue} placeholder="Auto-generated" className="bg-muted/30 text-muted-foreground" /></label>
-                <label className="space-y-1.5 text-sm">Name *<Input readOnly value={previewName} placeholder="Auto-generated" className="bg-muted/30 text-muted-foreground" /></label>
+                <label className="space-y-1.5 text-sm">Code *<Input readOnly value={previewCodeValue} placeholder="-- Auto-generated --" className="bg-muted/30 text-muted-foreground" /></label>
+                <label className="space-y-1.5 text-sm">Name *<Input readOnly value={previewName} placeholder="-- Auto-generated --" className="bg-muted/30 text-muted-foreground" /></label>
 
                 <div className="sm:col-span-2 lg:col-span-4">
                   <Button type="submit" disabled={saving}>{saving ? "Adding..." : "Add Territory"}</Button>
