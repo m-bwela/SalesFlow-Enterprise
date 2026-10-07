@@ -81,7 +81,7 @@ async function ensureKenyaRegions(organizationId: string) {
 	});
 	if (coast) {
 		await prisma.territory.createMany({
-			data: COAST_TERRITORIES.map((name) => ({ regionId: coast.id, name, code: toCode(name) })),
+			data: COAST_TERRITORIES.map((name) => ({ regionId: coast.id, organizationId, name, code: toCode(name) })),
 			skipDuplicates: true,
 		});
 	}
@@ -132,16 +132,7 @@ function applyRoleLocation(roleCode: RoleCode, location: { regionId: string | nu
 	}
 }
 
-export async function createTerritory(organizationId: string, regionId: string, name: string) {
-	const region = await prisma.region.findFirst({ where: { id: regionId, organizationId }, select: { id: true } });
-	if (!region) throw new AppError("INVALID_REGION", 400, "Choose a region in this organization.");
-	return prisma.territory.upsert({
-		where: { regionId_code: { regionId, code: toCode(name) } },
-		update: {},
-		create: { regionId, name, code: toCode(name) },
-		select: { id: true, name: true, regionId: true },
-	});
-}
+export { createTerritory } from "../territories/territories.service.js";
 
 export async function getUserManagementOverview(organizationId: string) {
 	const now = new Date();
@@ -643,7 +634,7 @@ async function resolveDistributorTerritoryId(transaction: Prisma.TransactionClie
 	const territory = await transaction.territory.upsert({
 		where: { regionId_code: { regionId: targetRegionId, code: UNASSIGNED_TERRITORY_CODE } },
 		update: {},
-		create: { regionId: targetRegionId, name: "Unassigned", code: UNASSIGNED_TERRITORY_CODE },
+		create: { regionId: targetRegionId, organizationId, name: "Unassigned", code: UNASSIGNED_TERRITORY_CODE },
 		select: { id: true },
 	});
 	return territory.id;
