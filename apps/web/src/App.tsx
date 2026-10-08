@@ -16,6 +16,7 @@ import { ModernTradeOutletsPage } from "./pages/admin/ModernTradeOutletsPage";
 import { ModernTradePage } from "./pages/admin/ModernTradePage";
 import { ModernTradeSalesPage } from "./pages/admin/ModernTradeSalesPage";
 import { ModernTradeTSMPage } from "./pages/admin/ModernTradeTSMPage";
+import { HorecaDashboardPage } from "./pages/admin/HorecaDashboardPage";
 import { OnlineUsersPage } from "./pages/admin/OnlineUsersPage";
 import { OrganizationStructurePage } from "./pages/admin/OrganizationStructure";
 import { OutletsPage } from "./pages/admin/OutletsPage";
@@ -112,6 +113,7 @@ function App() {
             <Route path="modern-trade/tsm" element={<ModernTradeTSMPage />} />
             <Route path="modern-trade/outlets" element={<ModernTradeOutletsPage />} />
             <Route path="modern-trade/sales" element={<ModernTradeSalesPage />} />
+            <Route path="horeca-dashboard" element={<HorecaDashboardPage />} />
           </Route>
 
           <Route path="/rsm" element={<RoleRoute allowedRoles={["RSM"]} />}>

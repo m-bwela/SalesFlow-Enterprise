@@ -146,6 +146,11 @@ export const adminNavigation: NavigationGroup[] = [
                 url: "/admin/modern-trade/sales",
                 icon: BarChart3,
             },
+            {
+                title: "HORECA Dashboard",
+                url: "/admin/horeca-dashboard",
+                icon: Store,
+            },
         ],
     },
     

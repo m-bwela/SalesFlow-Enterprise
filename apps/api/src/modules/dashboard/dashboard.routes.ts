@@ -3,7 +3,8 @@ import { Router } from "express";
 import { authenticate } from "../auth/auth.middleware.js"
 import { requirePermission } from "../auth/authorization.js";
 import { getAdminDashboard, getAsrDashboard, getDistributorDashboard, getOutletDashboard, getTsmDashboard } from "./dashboard.service.js";
-import { getModernTradeDashboard } from "./modern-trade.service.js";
+import { getModernTradeDashboard, getHorecaDashboard } from "./modern-trade.service.js";
+import { getMtTsmDashboard, reviewInvoice } from "./mt-tsm.service.js";
 
 import { z } from "zod";
 
@@ -52,11 +53,22 @@ const distributorDashboardFilterSchema = z.object({
     period: z.enum(["1D", "1W", "1M", "3M", "6M", "YTD", "1Y", "ALL"]).default("1M"),
 });
 
-const modernTradeFilterSchema = z.object({
-    period: z.enum(["LIVE", "1H", "6H", "1D", "1W", "1M", "3M", "6M", "YTD", "1Y", "2Y", "3Y", "ALL"]).default("1M"),
+const repChannelFilterSchema = z.object({
+    period: z.enum(["LIVE", "1H", "3H", "6H", "1D", "1W", "2W", "1M", "3M", "6M", "YTD", "1Y", "2Y", "3Y", "ALL"]).default("1M"),
     regionId: z.string().uuid().optional(),
     territoryId: z.string().uuid().optional(),
-    mtsrId: z.string().uuid().optional(),
+    repId: z.string().uuid().optional(),
+});
+
+const mtTsmFilterSchema = z.object({
+    period: z.enum(["LIVE", "1H", "3H", "6H", "1D", "1W", "2W", "1M", "3M", "6M", "YTD", "1Y"]).default("1M"),
+    regionId: z.string().uuid().optional(),
+    territoryId: z.string().uuid().optional(),
+    mtTsmId: z.string().uuid().optional(),
+});
+
+const invoiceActionSchema = z.object({
+    action: z.enum(["APPROVE", "REJECT"]),
 });
 
 router.get(
@@ -72,9 +84,77 @@ router.get(
                 });
             }
 
-            const filters = modernTradeFilterSchema.parse(req.query);
+            const filters = repChannelFilterSchema.parse(req.query);
             const dashboard = await getModernTradeDashboard(membership.organizationId, filters);
             return res.json({ data: dashboard });
+        } catch (error) {
+            return next(error);
+        }
+    },
+);
+
+router.get(
+    "/horeca",
+    authenticate,
+    requirePermission("dashboard.view"),
+    async (req, res, next) => {
+        try {
+            const membership = res.locals.membership;
+            if (!membership) {
+                return res.status(403).json({
+                    error: { code: "FORBIDDEN", message: "No active organization membership found." },
+                });
+            }
+
+            const filters = repChannelFilterSchema.parse(req.query);
+            const dashboard = await getHorecaDashboard(membership.organizationId, filters);
+            return res.json({ data: dashboard });
+        } catch (error) {
+            return next(error);
+        }
+    },
+);
+
+router.get(
+    "/mt-tsm",
+    authenticate,
+    requirePermission("dashboard.view"),
+    async (req, res, next) => {
+        try {
+            const membership = res.locals.membership;
+            if (!membership) {
+                return res.status(403).json({
+                    error: { code: "FORBIDDEN", message: "No active organization membership found." },
+                });
+            }
+
+            const filters = mtTsmFilterSchema.parse(req.query);
+            const dashboard = await getMtTsmDashboard(membership.organizationId, filters);
+            return res.json({ data: dashboard });
+        } catch (error) {
+            return next(error);
+        }
+    },
+);
+
+router.patch(
+    "/invoices/:orderId",
+    authenticate,
+    requirePermission("users.update"),
+    async (req, res, next) => {
+        try {
+            const membership = res.locals.membership;
+            const user = res.locals.user;
+            if (!membership || !user) {
+                return res.status(403).json({
+                    error: { code: "FORBIDDEN", message: "No active organization membership found." },
+                });
+            }
+
+            const orderId = z.string().uuid().parse(req.params.orderId);
+            const { action } = invoiceActionSchema.parse(req.body);
+            const result = await reviewInvoice(membership.organizationId, orderId, user.id, action);
+            return res.json({ data: result });
         } catch (error) {
             return next(error);
         }

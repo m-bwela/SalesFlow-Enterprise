@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   BarChart3,
+  CheckCircle2,
   Gauge,
   Package,
   ReceiptText,
@@ -9,6 +10,7 @@ import {
   TrendingUp,
   Users,
   Wifi,
+  XCircle,
 } from "lucide-react";
 
 import {
@@ -25,9 +27,11 @@ import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageContainer } from "@/components/layout/PageContainer";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  getModernTradeDashboard,
+  getHorecaDashboard,
+  reviewInvoice,
   type ModernTradePeriod,
   type RepChannelData,
   type RepChannelRow,
@@ -36,9 +40,11 @@ import {
 const periods: Array<{ label: string; value: ModernTradePeriod }> = [
   { label: "LIVE", value: "LIVE" },
   { label: "1H", value: "1H" },
+  { label: "3H", value: "3H" },
   { label: "6H", value: "6H" },
   { label: "1D", value: "1D" },
   { label: "1W", value: "1W" },
+  { label: "2W", value: "2W" },
   { label: "1M", value: "1M" },
   { label: "3M", value: "3M" },
   { label: "6M", value: "6M" },
@@ -63,7 +69,7 @@ const sortOptions: Array<{ label: string; value: SortKey }> = [
 const kpiSpans = [
   "xl:col-span-3", "xl:col-span-3", "xl:col-span-2", "xl:col-span-4",
   "xl:col-span-3", "xl:col-span-2", "xl:col-span-3", "xl:col-span-4",
-  "xl:col-span-3", "xl:col-span-2", "xl:col-span-4", "xl:col-span-3",
+  "xl:col-span-3", "xl:col-span-3", "xl:col-span-2", "xl:col-span-4",
 ];
 
 const LIVE_REFRESH_MS = 30_000;
@@ -81,6 +87,21 @@ function formatCurrencyCompact(value: number, currency = "KES") {
   return `${currency} ${new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(value)}`;
 }
 
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Nairobi" }).format(new Date(value));
+}
+
+function getInvoiceStatusStyle(status: string) {
+  switch (status) {
+    case "APPROVED":
+      return "bg-emerald-500/10 text-emerald-700 ring-1 ring-emerald-500/30 dark:text-emerald-300";
+    case "REJECTED":
+      return "bg-destructive/10 text-destructive ring-1 ring-destructive/30";
+    default:
+      return "bg-amber-500/10 text-amber-700 ring-1 ring-amber-500/30 dark:text-amber-300";
+  }
+}
+
 function sortRows(rows: RepChannelRow[], sortBy: SortKey) {
   return [...rows].sort((left, right) => {
     if (sortBy === "name") return left.name.localeCompare(right.name);
@@ -88,7 +109,7 @@ function sortRows(rows: RepChannelRow[], sortBy: SortKey) {
   });
 }
 
-export function ModernTradePage() {
+export function HorecaDashboardPage() {
   const [period, setPeriod] = useState<ModernTradePeriod>("1M");
   const [regionId, setRegionId] = useState("");
   const [territoryId, setTerritoryId] = useState("");
@@ -97,6 +118,8 @@ export function ModernTradePage() {
   const [dashboard, setDashboard] = useState<RepChannelData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
   // Only the newest request is allowed to update the screen, so a slow older response cannot overwrite a newer one.
   const latestRequest = useRef(0);
 
@@ -105,7 +128,7 @@ export function ModernTradePage() {
     if (!silent) setLoading(true);
     setError(null);
     try {
-      const data = await getModernTradeDashboard({
+      const data = await getHorecaDashboard({
         period,
         regionId: regionId || undefined,
         territoryId: territoryId || undefined,
@@ -113,7 +136,7 @@ export function ModernTradePage() {
       });
       if (requestId === latestRequest.current) setDashboard(data);
     } catch (requestError) {
-      if (requestId === latestRequest.current) setError(requestError instanceof Error ? requestError.message : "Could not load modern trade data.");
+      if (requestId === latestRequest.current) setError(requestError instanceof Error ? requestError.message : "Could not load HORECA data.");
     } finally {
       if (requestId === latestRequest.current) setLoading(false);
     }
@@ -128,25 +151,40 @@ export function ModernTradePage() {
 
   const regions = dashboard?.options.regions ?? [];
   const territories = regions.find((region) => region.id === regionId)?.territories ?? regions.flatMap((region) => region.territories);
-  const mtsrOptions = (dashboard?.options.reps ?? []).filter((rep) =>
+  const repOptions = (dashboard?.options.reps ?? []).filter((rep) =>
     (!regionId || rep.regionId === regionId) && (!territoryId || rep.territoryId === territoryId),
   );
   const rows = useMemo(() => sortRows(dashboard?.rows ?? [], sortBy), [dashboard, sortBy]);
 
+  async function act(orderId: string, action: "APPROVE" | "REJECT") {
+    setReviewingId(orderId);
+    setError(null);
+    setNotice(null);
+    try {
+      await reviewInvoice(orderId, action);
+      setNotice(`Invoice ${action === "APPROVE" ? "approved" : "rejected"}.`);
+      await load(true);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Could not update this invoice.");
+    } finally {
+      setReviewingId(null);
+    }
+  }
+
   const stats = dashboard?.stats;
   const currency = dashboard?.currency;
   const kpis = [
-    { title: "Total MTSRs", value: formatNumber(stats?.totalReps ?? 0), description: "Modern trade reps in view", icon: Users },
+    { title: "Total HORECA Reps", value: formatNumber(stats?.totalReps ?? 0), description: "Hotel, Restaurant & Cafe reps in view", icon: Users },
     { title: "Active", value: formatNumber(stats?.activeReps ?? 0), description: "Accounts currently active", icon: Activity },
     { title: "Online Now", value: formatNumber(stats?.onlineNow ?? 0), description: "Active in the last 5 min", icon: Wifi },
     { title: "Revenue", value: formatCurrencyCompact(stats?.revenue ?? 0, currency), description: `Selected period: ${period}`, icon: TrendingUp },
     { title: "Orders", value: formatNumber(stats?.orders ?? 0), description: "Approved invoices placed by reps", icon: BarChart3 },
     { title: "Volume", value: formatNumber(stats?.volume ?? 0), description: "Recorded item quantities", icon: Package },
-    { title: "Outlets", value: formatNumber(stats?.outlets ?? 0), description: "Registered by these reps", icon: Store },
+    { title: "Outlets", value: formatNumber(stats?.outlets ?? 0), description: "Hotels, restaurants and cafes registered", icon: Store },
     { title: "Outlets Ordering", value: formatNumber(stats?.outletsOrdering ?? 0), description: "Outlets with orders this period", icon: Store },
     { title: "Pending Invoices", value: formatNumber(stats?.pendingInvoices ?? 0), description: "Awaiting MT_TSM approval", icon: ReceiptText },
-    { title: "Approved Invoices", value: formatNumber(stats?.approvedInvoices ?? 0), description: "Confirmed as sales", icon: ReceiptText },
-    { title: "Average Revenue / MTSR", value: formatCurrencyCompact(stats?.averageRevenuePerRep ?? 0, currency), description: "Revenue per active MTSR", icon: TrendingUp },
+    { title: "Approved Invoices", value: formatNumber(stats?.approvedInvoices ?? 0), description: "Confirmed as sales", icon: CheckCircle2 },
+    { title: "Average Revenue / Rep", value: formatCurrencyCompact(stats?.averageRevenuePerRep ?? 0, currency), description: "Revenue per active rep", icon: TrendingUp },
     { title: "Average Order Value", value: formatCurrencyCompact(stats?.averageOrderValue ?? 0, currency), description: "Revenue per order", icon: Gauge },
   ];
 
@@ -154,7 +192,7 @@ export function ModernTradePage() {
     <AppShell>
       <PageContainer>
         <div className="space-y-6">
-          <DashboardHeader title="Modern Trade" description="Channel performance across MTSRs, customers, Outlets, orders and supply" />
+          <DashboardHeader title="HORECA Dashboard" description="Channel performance across Hotel, Restaurant & Cafe reps, Depot-sourced orders, and invoices" />
 
           <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/20 p-2" role="group" aria-label="Reporting period">
             {periods.map((item) => (
@@ -174,9 +212,9 @@ export function ModernTradePage() {
               <option value="">All Territories</option>
               {territories.map((territory) => <option key={territory.id} value={territory.id}>{territory.name}</option>)}
             </select>
-            <select aria-label="MTSR view" className={selectClass} value={repId} onChange={(event) => setRepId(event.target.value)}>
-              <option value="">All MTSRs</option>
-              {mtsrOptions.map((rep) => <option key={rep.id} value={rep.id}>{rep.name}</option>)}
+            <select aria-label="HORECA rep view" className={selectClass} value={repId} onChange={(event) => setRepId(event.target.value)}>
+              <option value="">All Reps</option>
+              {repOptions.map((rep) => <option key={rep.id} value={rep.id}>{rep.name}</option>)}
             </select>
             <select aria-label="Sort by" className={selectClass} value={sortBy} onChange={(event) => setSortBy(event.target.value as SortKey)}>
               {sortOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
@@ -184,18 +222,19 @@ export function ModernTradePage() {
             {period === "LIVE" && <span className="text-xs text-muted-foreground">Showing today so far. Refreshes every 30 seconds.</span>}
           </div>
 
-          {loading && <p className="rounded-md border p-3 text-sm text-muted-foreground">Loading modern trade performance...</p>}
+          {loading && <p className="rounded-md border p-3 text-sm text-muted-foreground">Loading HORECA performance...</p>}
           {error && <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</p>}
+          {notice && <p role="status" className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 text-sm text-emerald-700 dark:text-emerald-300">{notice}</p>}
           {!loading && !error && dashboard && dashboard.stats.totalReps > 0 && dashboard.stats.orders === 0 && (
-            <p role="status" className="rounded-md border bg-muted/20 p-3 text-sm text-muted-foreground">No approved sales orders from these MTSRs match {period}. Revenue and order totals only count invoices MT_TSM has approved.</p>
+            <p role="status" className="rounded-md border bg-muted/20 p-3 text-sm text-muted-foreground">No approved sales orders from these HORECA reps match {period}. Revenue and order totals only count invoices MT_TSM has approved.</p>
           )}
 
-          <section aria-label="Modern trade KPIs" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-12">
+          <section aria-label="HORECA KPIs" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-12">
             {kpis.map((kpi, index) => <div key={kpi.title} className={kpiSpans[index]}><KpiCard {...kpi} /></div>)}
           </section>
 
           <Card>
-            <CardHeader><CardTitle>Revenue Trend</CardTitle><p className="text-sm text-muted-foreground">Revenue per interval in the selected reporting period</p></CardHeader>
+            <CardHeader><CardTitle>Revenue Trend</CardTitle><p className="text-sm text-muted-foreground">Approved revenue per interval in the selected reporting period</p></CardHeader>
             <CardContent>
               {dashboard?.revenueTrend.some(({ revenue }) => revenue > 0) ? (
                 <ResponsiveContainer width="100%" height={280}>
@@ -207,14 +246,53 @@ export function ModernTradePage() {
                     <Bar dataKey="revenue" name="Revenue" fill="#168f72" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
-              ) : <p className="py-12 text-center text-sm text-muted-foreground">No modern trade revenue recorded for this period.</p>}
+              ) : <p className="py-12 text-center text-sm text-muted-foreground">No HORECA revenue recorded for this period.</p>}
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>MTSR Snapshot</CardTitle>
-              <p className="text-sm text-muted-foreground">Modern Trade reps ranked by channel performance</p>
+              <CardTitle>Invoices</CardTitle>
+              <p className="text-sm text-muted-foreground">Depot orders placed by HORECA reps, pending MT_TSM approval or already reviewed</p>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[820px] text-left text-sm">
+                  <thead className="border-y bg-muted/30 text-xs text-muted-foreground">
+                    <tr>{["Rep", "Outlet", "Depot", "Amount", "Date", "Status", "Actions"].map((heading) => <th key={heading} className="px-3 py-3 font-medium">{heading}</th>)}</tr>
+                  </thead>
+                  <tbody>
+                    {(dashboard?.invoices ?? []).map((invoice) => (
+                      <tr key={invoice.id} className="border-b last:border-0 hover:bg-muted/20">
+                        <td className="px-3 py-3 font-medium">{invoice.repName}</td>
+                        <td className="px-3 py-3 text-muted-foreground">{invoice.outlet}</td>
+                        <td className="px-3 py-3 text-muted-foreground">{invoice.depot}</td>
+                        <td className="px-3 py-3">{formatCurrency(invoice.amount, currency)}</td>
+                        <td className="px-3 py-3 text-muted-foreground">{formatDateTime(invoice.orderDate)}</td>
+                        <td className="px-3 py-3"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getInvoiceStatusStyle(invoice.status)}`}>{invoice.status}</span></td>
+                        <td className="px-3 py-3">
+                          {invoice.status === "PENDING" ? (
+                            <div className="flex gap-2">
+                              <Button type="button" size="sm" variant="outline" disabled={reviewingId === invoice.id} onClick={() => void act(invoice.id, "APPROVE")}><CheckCircle2 className="text-emerald-600" />Approve</Button>
+                              <Button type="button" size="sm" variant="outline" disabled={reviewingId === invoice.id} onClick={() => void act(invoice.id, "REJECT")}><XCircle className="text-destructive" />Reject</Button>
+                            </div>
+                          ) : <span className="text-xs text-muted-foreground">Reviewed</span>}
+                        </td>
+                      </tr>
+                    ))}
+                    {!loading && (dashboard?.invoices.length ?? 0) === 0 && (
+                      <tr><td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">No invoices recorded for this period.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>HORECA Snapshot</CardTitle>
+              <p className="text-sm text-muted-foreground">HORECA reps ranked by channel performance</p>
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
@@ -243,7 +321,7 @@ export function ModernTradePage() {
                       </tr>
                     ))}
                     {!loading && rows.length === 0 && (
-                      <tr><td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">No MTSRs match these filters. Register a user with the Mtsr role and approve them to see them here.</td></tr>
+                      <tr><td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">No HORECA reps match these filters. Register a user with the Horeca role and approve them to see them here.</td></tr>
                     )}
                   </tbody>
                 </table>

@@ -35,9 +35,11 @@ export type DistributorDashboardPeriod = Exclude<DashboardFilters["period"], "LI
 export type ModernTradePeriod =
     | "LIVE"
     | "1H"
+    | "3H"
     | "6H"
     | "1D"
     | "1W"
+    | "2W"
     | "1M"
     | "3M"
     | "6M"
@@ -51,7 +53,7 @@ export interface ModernTradeFilters {
     period: ModernTradePeriod;
     regionId?: string;
     territoryId?: string;
-    mtsrId?: string;
+    repId?: string;
 }
 
 export type AsrDashboardPeriod =

@@ -58,6 +58,12 @@ enum OrderSupplySource {
   FACTORY
 }
 
+enum OrderApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum RoleCode {
   ADMIN
   SUPER_ADMIN
@@ -109,6 +115,7 @@ model User {
   createdDocuments Document[]   @relation("DocumentCreatedBy")
   ownedDocuments   Document[]   @relation("DocumentOwner")
   createdSalesOrders SalesOrder[] @relation("SalesOrderCreatedBy")
+  reviewedSalesOrders SalesOrder[] @relation("SalesOrderReviewedBy")
   createdOutlets   Outlet[]      @relation("OutletCreatedBy")
   loginAttempts   LoginAttempt[]
   updatedShiftSettings AsrShiftSetting[] @relation("AsrShiftUpdatedBy")
@@ -193,6 +200,7 @@ model Organization {
 
   regions     Region[]
   territories Territory[]
+  depots      Depot[]
   memberships Membership[]
   documents   Document[]
   products    Product[]
@@ -263,6 +271,7 @@ model Region {
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   territories  Territory[]
+  depots       Depot[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -327,6 +336,29 @@ model Warehouse {
   @@map("warehouses")
 }
 
+// A company-owned branch holding bulk stock. Unlike a Distributor's Warehouse, a Depot can supply
+// distributors or sell straight to the field (MTSR/HORECA reps), bypassing distributors entirely.
+model Depot {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  regionId       String?  @db.Uuid
+  name           String
+  code           String
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  region       Region?      @relation(fields: [regionId], references: [id], onDelete: SetNull)
+  outlets      Outlet[]
+  salesOrders  SalesOrder[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@index([regionId])
+  @@map("depots")
+}
+
 model Product {
   id             String   @id @default(uuid()) @db.Uuid
   organizationId String   @db.Uuid
@@ -350,7 +382,8 @@ model Product {
 model Outlet {
   id             String   @id @default(uuid()) @db.Uuid
   organizationId String   @db.Uuid
-  distributorId  String   @db.Uuid
+  distributorId  String?  @db.Uuid
+  depotId        String?  @db.Uuid
   code           String
   name           String
   type           OutletType @default(OTHER)
@@ -364,13 +397,15 @@ model Outlet {
   updatedAt      DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  distributor  Distributor  @relation(fields: [distributorId], references: [id], onDelete: Restrict)
+  distributor  Distributor? @relation(fields: [distributorId], references: [id], onDelete: Restrict)
+  depot        Depot?       @relation(fields: [depotId], references: [id], onDelete: Restrict)
   createdBy    User?        @relation("OutletCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   salesOrders  SalesOrder[]
 
   @@unique([organizationId, code])
   @@index([organizationId, isActive])
   @@index([distributorId])
+  @@index([depotId])
   @@map("outlets")
 }
 
@@ -378,7 +413,8 @@ model SalesOrder {
   id               String           @id @default(uuid()) @db.Uuid
   organizationId   String           @db.Uuid
   outletId         String           @db.Uuid
-  distributorId    String           @db.Uuid
+  distributorId    String?          @db.Uuid
+  depotId          String?          @db.Uuid
   createdById      String           @db.Uuid
   orderNumber      String
   status           SalesOrderStatus @default(CONFIRMED)
@@ -389,21 +425,28 @@ model SalesOrder {
   cancelledAt      DateTime?
   paymentMethod    String?
   supplySource     OrderSupplySource @default(DISTRIBUTOR)
+  approvalStatus   OrderApprovalStatus @default(APPROVED)
+  reviewedById     String?          @db.Uuid
+  reviewedAt       DateTime?
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
   organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   outlet       Outlet           @relation(fields: [outletId], references: [id], onDelete: Restrict)
-  distributor  Distributor      @relation(fields: [distributorId], references: [id], onDelete: Restrict)
+  distributor  Distributor?     @relation(fields: [distributorId], references: [id], onDelete: Restrict)
+  depot        Depot?           @relation(fields: [depotId], references: [id], onDelete: Restrict)
   createdBy    User             @relation("SalesOrderCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  reviewedBy   User?            @relation("SalesOrderReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
   items        SalesOrderItem[]
 
   @@unique([organizationId, orderNumber])
   @@index([organizationId, orderDate, status])
   @@index([distributorId, orderDate])
+  @@index([depotId, orderDate])
   @@index([outletId, orderDate])
   @@index([status, deliveredAt])
   @@index([supplySource, orderDate])
+  @@index([approvalStatus])
   @@map("sales_orders")
 }
 

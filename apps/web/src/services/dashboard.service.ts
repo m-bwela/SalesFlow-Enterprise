@@ -224,9 +224,9 @@ export async function getDistributorDashboard(period: DistributorDashboardPeriod
     return response.data;
 }
 
-export type ModernTradePeriod = "LIVE" | "1H" | "6H" | "1D" | "1W" | "1M" | "3M" | "6M" | "YTD" | "1Y" | "2Y" | "3Y" | "ALL";
+export type ModernTradePeriod = "LIVE" | "1H" | "3H" | "6H" | "1D" | "1W" | "2W" | "1M" | "3M" | "6M" | "YTD" | "1Y" | "2Y" | "3Y" | "ALL";
 
-export interface ModernTradeRow {
+export interface RepChannelRow {
     id: string;
     rank: number;
     name: string;
@@ -241,48 +241,153 @@ export interface ModernTradeRow {
     outlets: number;
     outletsOrdering: number;
     orders: number;
-    factoryOrders: number;
+    pendingInvoices: number;
 }
 
-export interface ModernTradeData {
+export interface InvoiceRow {
+    id: string;
+    repId: string;
+    repName: string;
+    outlet: string;
+    depot: string;
+    amount: number;
+    status: "PENDING" | "APPROVED" | "REJECTED";
+    orderDate: string;
+}
+
+export interface RepChannelData {
     period: ModernTradePeriod;
     updatedAt: string;
     currency: string;
     stats: {
-        totalMtsrs: number;
-        activeMtsrs: number;
+        totalReps: number;
+        activeReps: number;
         onlineNow: number;
         revenue: number;
         orders: number;
         volume: number;
         outlets: number;
         outletsOrdering: number;
-        factoryOrders: number;
-        factoryShare: number;
-        averageRevenuePerMtsr: number;
+        pendingInvoices: number;
+        approvedInvoices: number;
+        rejectedInvoices: number;
+        averageRevenuePerRep: number;
         averageOrderValue: number;
     };
     options: {
         regions: Array<{ id: string; name: string; territories: Array<{ id: string; name: string }> }>;
-        mtsrs: Array<{ id: string; name: string; regionId: string | null; territoryId: string | null }>;
+        reps: Array<{ id: string; name: string; regionId: string | null; territoryId: string | null }>;
     };
     revenueTrend: Array<{ bucket: string; revenue: number; orders: number }>;
-    rows: ModernTradeRow[];
+    rows: RepChannelRow[];
+    invoices: InvoiceRow[];
 }
 
-export async function getModernTradeDashboard(filters: {
+async function getRepChannelDashboard(endpoint: "modern-trade" | "horeca", filters: {
     period: ModernTradePeriod;
     regionId?: string;
     territoryId?: string;
-    mtsrId?: string;
+    repId?: string;
 }) {
     const params = new URLSearchParams({ period: filters.period });
     if (filters.regionId) params.set("regionId", filters.regionId);
     if (filters.territoryId) params.set("territoryId", filters.territoryId);
-    if (filters.mtsrId) params.set("mtsrId", filters.mtsrId);
-    const response = await apiFetch<{ data: ModernTradeData }>(`/api/v1/dashboard/modern-trade?${params.toString()}`);
+    if (filters.repId) params.set("repId", filters.repId);
+    const response = await apiFetch<{ data: RepChannelData }>(`/api/v1/dashboard/${endpoint}?${params.toString()}`);
     return response.data;
 }
+
+export async function getModernTradeDashboard(filters: { period: ModernTradePeriod; regionId?: string; territoryId?: string; repId?: string }) {
+    return getRepChannelDashboard("modern-trade", filters);
+}
+
+export async function getHorecaDashboard(filters: { period: ModernTradePeriod; regionId?: string; territoryId?: string; repId?: string }) {
+    return getRepChannelDashboard("horeca", filters);
+}
+
+export type MtTsmPeriod = "LIVE" | "1H" | "3H" | "6H" | "1D" | "1W" | "2W" | "1M" | "3M" | "6M" | "YTD" | "1Y";
+
+export interface MtTsmRow {
+    id: string;
+    rank: number;
+    name: string;
+    email: string;
+    phone: string | null;
+    status: string;
+    online: boolean;
+    region: string;
+    territory: string;
+    mtsrTeamSize: number;
+    outlets: number;
+    revenue: number;
+    volume: number;
+    orders: number;
+    pendingInvoices: number;
+}
+
+export interface MtTsmInvoiceRow {
+    id: string;
+    repId: string;
+    repName: string;
+    mtTsmName: string;
+    outlet: string;
+    depot: string;
+    amount: number;
+    status: "PENDING" | "APPROVED" | "REJECTED";
+    orderDate: string;
+}
+
+export interface MtTsmDashboardData {
+    period: MtTsmPeriod;
+    updatedAt: string;
+    currency: string;
+    stats: {
+        totalMtTsms: number;
+        activeMtTsms: number;
+        onlineNow: number;
+        mtsrTeamSize: number;
+        outlets: number;
+        revenue: number;
+        orders: number;
+        volume: number;
+        pendingInvoices: number;
+        approvedInvoices: number;
+        rejectedInvoices: number;
+        averageRevenuePerMtTsm: number;
+        averageOrderValue: number;
+    };
+    options: {
+        regions: Array<{ id: string; name: string }>;
+        territories: Array<{ id: string; name: string; regionId: string }>;
+        mtTsms: Array<{ id: string; name: string; regionId: string | null; territoryId: string | null }>;
+    };
+    revenueTrend: Array<{ bucket: string; revenue: number; orders: number }>;
+    rows: MtTsmRow[];
+    invoices: MtTsmInvoiceRow[];
+}
+
+export async function getMtTsmDashboard(filters: {
+    period: MtTsmPeriod;
+    regionId?: string;
+    territoryId?: string;
+    mtTsmId?: string;
+}) {
+    const params = new URLSearchParams({ period: filters.period });
+    if (filters.regionId) params.set("regionId", filters.regionId);
+    if (filters.territoryId) params.set("territoryId", filters.territoryId);
+    if (filters.mtTsmId) params.set("mtTsmId", filters.mtTsmId);
+    const response = await apiFetch<{ data: MtTsmDashboardData }>(`/api/v1/dashboard/mt-tsm?${params.toString()}`);
+    return response.data;
+}
+
+export async function reviewInvoice(orderId: string, action: "APPROVE" | "REJECT") {
+    const response = await apiFetch<{ data: { id: string; approvalStatus: string; reviewedAt: string } }>(
+        `/api/v1/dashboard/invoices/${orderId}`,
+        { method: "PATCH", body: JSON.stringify({ action }) },
+    );
+    return response.data;
+}
+
 
 export async function getTsmDashboard(filters: {
     period: TsmDashboardPeriod;

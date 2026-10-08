@@ -1,5 +1,5 @@
 import { prisma } from "@salesflow/database";
-import type { Prisma } from "@prisma/client";
+import type { Prisma, RoleCode } from "@prisma/client";
 
 import type { ModernTradeFilters, ModernTradePeriod } from "./dashboard.types.js";
 
@@ -7,15 +7,18 @@ const EAT_OFFSET_MS = 3 * 60 * 60 * 1000;
 const ONLINE_WINDOW_MS = 5 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
-const TREND_BUCKETS = 12;
-const UNASSIGNED = "Unassigned";
+export const TREND_BUCKETS = 12;
+export const UNASSIGNED = "Unassigned";
+export { DAY_MS };
 
 // How far back each rolling period reaches. LIVE, YTD and ALL are handled separately in getPeriodStart.
 const ROLLING_PERIOD_MS: Partial<Record<ModernTradePeriod, number>> = {
     "1H": HOUR_MS,
+    "3H": 3 * HOUR_MS,
     "6H": 6 * HOUR_MS,
     "1D": DAY_MS,
     "1W": 7 * DAY_MS,
+    "2W": 14 * DAY_MS,
     "1M": 30 * DAY_MS,
     "3M": 90 * DAY_MS,
     "6M": 180 * DAY_MS,
@@ -30,7 +33,7 @@ function getEatDayStart(now: Date) {
     return new Date(Date.UTC(eatNow.getUTCFullYear(), eatNow.getUTCMonth(), eatNow.getUTCDate()) - EAT_OFFSET_MS);
 }
 
-function getPeriodStart(period: ModernTradePeriod, now: Date) {
+export function getPeriodStart(period: ModernTradePeriod, now: Date) {
     if (period === "ALL") return new Date(0);
     // LIVE means "today so far"; the page also refreshes itself every 30 seconds in this mode.
     if (period === "LIVE") return getEatDayStart(now);
@@ -41,7 +44,7 @@ function getPeriodStart(period: ModernTradePeriod, now: Date) {
     return new Date(now.getTime() - (ROLLING_PERIOD_MS[period] ?? DAY_MS));
 }
 
-function orderRevenue(items: Array<{ quantity: Prisma.Decimal; unitPrice: Prisma.Decimal }>) {
+export function orderRevenue(items: Array<{ quantity: Prisma.Decimal; unitPrice: Prisma.Decimal }>) {
     let revenue = 0;
     let volume = 0;
     for (const item of items) {
@@ -54,7 +57,7 @@ function orderRevenue(items: Array<{ quantity: Prisma.Decimal; unitPrice: Prisma
 }
 
 // Splits the period into equal intervals and labels them with a time (short periods) or a date (long ones).
-function buildRevenueTrend(start: Date, end: Date) {
+export function buildRevenueTrend(start: Date, end: Date) {
     const span = Math.max(end.getTime() - start.getTime(), 1);
     const shortPeriod = span <= 2 * DAY_MS;
     const formatter = new Intl.DateTimeFormat("en-GB", shortPeriod
@@ -67,7 +70,10 @@ function buildRevenueTrend(start: Date, end: Date) {
     }));
 }
 
-export async function getModernTradeDashboard(organizationId: string, filters: ModernTradeFilters) {
+// Shared by the Modern Trade (MTSR) dashboard and the HORECA dashboard — both are "a channel of
+// field reps who order straight from a Depot, with invoices MT_TSM approves or rejects", just for
+// a different role. Only the role differs between the two; everything else is identical.
+export async function getRepChannelDashboard(organizationId: string, repRole: Extract<RoleCode, "MTSR" | "HORECA">, filters: ModernTradeFilters) {
     const now = new Date();
     const periodStart = getPeriodStart(filters.period, now);
 
@@ -84,7 +90,7 @@ export async function getModernTradeDashboard(organizationId: string, filters: M
         }),
         prisma.membershipRole.findMany({
             where: {
-                role: { code: "MTSR" },
+                role: { code: repRole },
                 isActive: true,
                 startsAt: { lte: now },
                 OR: [{ endsAt: null }, { endsAt: { gt: now } }],
@@ -102,7 +108,7 @@ export async function getModernTradeDashboard(organizationId: string, filters: M
     const regionById = new Map(regions.map((region) => [region.id, region]));
     const territoryById = new Map(regions.flatMap((region) => region.territories.map((territory) => [territory.id, { ...territory, regionId: region.id }] as const)));
 
-    // One entry per person, even if they hold several MTSR assignments.
+    // One entry per person, even if they hold several assignments of this role.
     const repsById = new Map<string, {
         id: string;
         name: string;
@@ -131,7 +137,7 @@ export async function getModernTradeDashboard(organizationId: string, filters: M
     const reps = allReps.filter((rep) =>
         (!filters.regionId || rep.regionId === filters.regionId) &&
         (!filters.territoryId || rep.territoryId === filters.territoryId) &&
-        (!filters.mtsrId || rep.id === filters.mtsrId),
+        (!filters.repId || rep.id === filters.repId),
     );
     const repIds = reps.map(({ id }) => id);
 
@@ -146,10 +152,13 @@ export async function getModernTradeDashboard(organizationId: string, filters: M
                     status: { notIn: ["DRAFT", "CANCELLED"] },
                 },
                 select: {
+                    id: true,
                     createdById: true,
                     outletId: true,
                     orderDate: true,
-                    supplySource: true,
+                    approvalStatus: true,
+                    outlet: { select: { name: true } },
+                    depot: { select: { name: true } },
                     items: { select: { quantity: true, unitPrice: true } },
                 },
             }),
@@ -169,27 +178,36 @@ export async function getModernTradeDashboard(organizationId: string, filters: M
     const outletsByRep = new Map(outletCounts.flatMap((row) => row.createdById ? [[row.createdById, row._count._all] as const] : []));
     const onlineIds = new Set(onlineSessions.map(({ userId }) => userId));
 
-    const totals = new Map<string, { revenue: number; volume: number; orders: number; factoryOrders: number; outletIds: Set<string> }>();
+    // Only APPROVED invoices count as confirmed revenue — Pending orders aren't guaranteed sales
+    // yet (they could be Rejected), so they're tracked separately instead of inflating the KPIs.
+    const approvedOrders = orders.filter((order) => order.approvalStatus === "APPROVED");
+
+    const totals = new Map<string, { revenue: number; volume: number; orders: number; pendingInvoices: number; outletIds: Set<string> }>();
     const allOrderedOutletIds = new Set<string>();
-    for (const order of orders) {
-        const repTotals = totals.get(order.createdById) ?? { revenue: 0, volume: 0, orders: 0, factoryOrders: 0, outletIds: new Set<string>() };
+    for (const order of approvedOrders) {
+        const repTotals = totals.get(order.createdById) ?? { revenue: 0, volume: 0, orders: 0, pendingInvoices: 0, outletIds: new Set<string>() };
         const { revenue, volume } = orderRevenue(order.items);
         repTotals.revenue += revenue;
         repTotals.volume += volume;
         repTotals.orders += 1;
-        if (order.supplySource === "FACTORY") repTotals.factoryOrders += 1;
         repTotals.outletIds.add(order.outletId);
         allOrderedOutletIds.add(order.outletId);
+        totals.set(order.createdById, repTotals);
+    }
+    for (const order of orders) {
+        if (order.approvalStatus !== "PENDING") continue;
+        const repTotals = totals.get(order.createdById) ?? { revenue: 0, volume: 0, orders: 0, pendingInvoices: 0, outletIds: new Set<string>() };
+        repTotals.pendingInvoices += 1;
         totals.set(order.createdById, repTotals);
     }
 
     // "ALL" starts at 1970, which would squash every order into the last bar, so start at the first real order instead.
     const trendStart = filters.period === "ALL"
-        ? new Date(Math.min(now.getTime() - DAY_MS, ...orders.map(({ orderDate }) => orderDate.getTime())))
+        ? new Date(Math.min(now.getTime() - DAY_MS, ...approvedOrders.map(({ orderDate }) => orderDate.getTime())))
         : periodStart;
     const revenueTrend = buildRevenueTrend(trendStart, now);
     const trendSpan = Math.max(now.getTime() - trendStart.getTime(), 1);
-    for (const order of orders) {
+    for (const order of approvedOrders) {
         const position = (order.orderDate.getTime() - trendStart.getTime()) / trendSpan;
         const index = Math.min(Math.max(Math.floor(position * TREND_BUCKETS), 0), TREND_BUCKETS - 1);
         revenueTrend[index].revenue += orderRevenue(order.items).revenue;
@@ -214,7 +232,7 @@ export async function getModernTradeDashboard(organizationId: string, filters: M
             outlets: outletsByRep.get(rep.id) ?? 0,
             outletsOrdering: repTotals?.outletIds.size ?? 0,
             orders: repTotals?.orders ?? 0,
-            factoryOrders: repTotals?.factoryOrders ?? 0,
+            pendingInvoices: repTotals?.pendingInvoices ?? 0,
         };
     }).sort((left, right) => right.revenue - left.revenue || left.name.localeCompare(right.name))
         .map((row, index) => ({ ...row, rank: index + 1 }));
@@ -222,25 +240,39 @@ export async function getModernTradeDashboard(organizationId: string, filters: M
     const sum = (pick: (row: (typeof rows)[number]) => number) => rows.reduce((total, row) => total + pick(row), 0);
     const totalRevenue = sum((row) => row.revenue);
     const totalOrders = sum((row) => row.orders);
-    const factoryOrders = sum((row) => row.factoryOrders);
     const activeReps = reps.filter(({ status }) => status === "ACTIVE").length;
+    const repNameById = new Map(reps.map((rep) => [rep.id, rep.name]));
+
+    const invoices = orders
+        .map((order) => ({
+            id: order.id,
+            repId: order.createdById,
+            repName: repNameById.get(order.createdById) ?? "Unknown",
+            outlet: order.outlet.name,
+            depot: order.depot?.name ?? UNASSIGNED,
+            amount: orderRevenue(order.items).revenue,
+            status: order.approvalStatus,
+            orderDate: order.orderDate.toISOString(),
+        }))
+        .sort((left, right) => right.orderDate.localeCompare(left.orderDate));
 
     return {
         period: filters.period,
         updatedAt: now.toISOString(),
         currency: "KES",
         stats: {
-            totalMtsrs: reps.length,
-            activeMtsrs: activeReps,
+            totalReps: reps.length,
+            activeReps,
             onlineNow: rows.filter(({ online }) => online).length,
             revenue: totalRevenue,
             orders: totalOrders,
             volume: sum((row) => row.volume),
             outlets: sum((row) => row.outlets),
             outletsOrdering: allOrderedOutletIds.size,
-            factoryOrders,
-            factoryShare: totalOrders ? (factoryOrders / totalOrders) * 100 : 0,
-            averageRevenuePerMtsr: activeReps ? totalRevenue / activeReps : 0,
+            pendingInvoices: invoices.filter((invoice) => invoice.status === "PENDING").length,
+            approvedInvoices: invoices.filter((invoice) => invoice.status === "APPROVED").length,
+            rejectedInvoices: invoices.filter((invoice) => invoice.status === "REJECTED").length,
+            averageRevenuePerRep: activeReps ? totalRevenue / activeReps : 0,
             averageOrderValue: totalOrders ? totalRevenue / totalOrders : 0,
         },
         // Filter choices come from the unfiltered data so the dropdowns do not shrink as you filter.
@@ -252,11 +284,20 @@ export async function getModernTradeDashboard(organizationId: string, filters: M
                     name: region.name,
                     territories: region.territories.filter(({ code }) => code !== "UNASSIGNED").map(({ id, name }) => ({ id, name })),
                 })),
-            mtsrs: allReps
+            reps: allReps
                 .map(({ id, name, regionId, territoryId }) => ({ id, name, regionId, territoryId }))
                 .sort((left, right) => left.name.localeCompare(right.name)),
         },
         revenueTrend,
         rows,
+        invoices,
     };
+}
+
+export async function getModernTradeDashboard(organizationId: string, filters: ModernTradeFilters) {
+    return getRepChannelDashboard(organizationId, "MTSR", filters);
+}
+
+export async function getHorecaDashboard(organizationId: string, filters: ModernTradeFilters) {
+    return getRepChannelDashboard(organizationId, "HORECA", filters);
 }

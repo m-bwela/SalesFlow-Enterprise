@@ -123,7 +123,9 @@ export async function getDistributorDashboard(organizationId: string, period: Di
     });
 
     for (const order of periodOrders) {
-        const totals = currentTotals.get(order.distributorId) ?? { revenue: 0, orders: 0, volume: 0 };
+        // The query above only matches distributorId IN (real distributor ids), so this is never null here.
+        const distributorId = order.distributorId!;
+        const totals = currentTotals.get(distributorId) ?? { revenue: 0, orders: 0, volume: 0 };
         totals.orders += 1;
         const orderRevenue = order.items.reduce((sum, item) => {
             const quantity = Number(item.quantity);
@@ -131,14 +133,15 @@ export async function getDistributorDashboard(organizationId: string, period: Di
             return sum + quantity * Number(item.unitPrice);
         }, 0);
         totals.revenue += orderRevenue;
-        currentTotals.set(order.distributorId, totals);
+        currentTotals.set(distributorId, totals);
         const bucketIndex = getBucketIndex(order.orderDate, periodStart, now, revenueTrend.length);
         revenueTrend[bucketIndex].revenue += orderRevenue;
     }
 
     for (const order of previousOrders) {
+        const distributorId = order.distributorId!;
         const orderRevenue = order.items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.unitPrice), 0);
-        previousRevenue.set(order.distributorId, (previousRevenue.get(order.distributorId) ?? 0) + orderRevenue);
+        previousRevenue.set(distributorId, (previousRevenue.get(distributorId) ?? 0) + orderRevenue);
     }
 
     const rows = distributors.map((distributor) => {
@@ -392,9 +395,11 @@ export async function getTsmDashboard(organizationId: string, filters: TsmDashbo
     }
     const ordersByDistributor = new Map<string, typeof orders>();
     for (const order of orders) {
-        const distributorOrders = ordersByDistributor.get(order.distributorId) ?? [];
+        // The query above only matches distributorId IN (scoped distributor ids), so this is never null here.
+        const distributorId = order.distributorId!;
+        const distributorOrders = ordersByDistributor.get(distributorId) ?? [];
         distributorOrders.push(order);
-        ordersByDistributor.set(order.distributorId, distributorOrders);
+        ordersByDistributor.set(distributorId, distributorOrders);
     }
     // A GT TSM leads ASRs; an MT TSM leads MTSRs. Both are matched by the TSM's territory.
     const teamByTsm = new Map<string, Array<{ id: string; name: string; phone: string | null }>>();
@@ -446,7 +451,7 @@ export async function getTsmDashboard(organizationId: string, filters: TsmDashbo
         };
     }).sort((left, right) => right.revenue - left.revenue || left.name.localeCompare(right.name));
 
-    const overallOrderIds = new Set(orders.map((order) => order.distributorId));
+    const overallOrderIds = new Set(orders.map((order) => order.distributorId!));
     const uniqueScopedOrders = [...overallOrderIds].flatMap((distributorId) => ordersByDistributor.get(distributorId) ?? []);
     const activeTsmCount = tsmScopes.filter(({ user }) => user.status === "ACTIVE").length;
     const totalRevenue = uniqueScopedOrders.reduce((total, order) => total + order.items.reduce(
@@ -852,7 +857,9 @@ export async function getOutletDashboard(organizationId: string, filters: Pick<D
         : new Date(periodStart.getTime() - previousDuration);
     const lastMonthStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const outlets = await prisma.outlet.findMany({
-        where: { organizationId, isActive: true },
+        // This dashboard is the distributor channel view; depot-sourced outlets (MTSR/HORECA) are
+        // covered by the Modern Trade / HORECA dashboards instead.
+        where: { organizationId, isActive: true, distributorId: { not: null } },
         take: 1000,
         orderBy: { name: "asc" },
         select: {
@@ -968,6 +975,8 @@ export async function getOutletDashboard(organizationId: string, filters: Pick<D
         const currentRevenue = revenueByOutlet.get(outlet.id) ?? 0;
         const previousRevenue = previousRevenueByOutlet.get(outlet.id) ?? 0;
         const trend = filters.period === "ALL" ? null : currentRevenue > previousRevenue ? "UP" : currentRevenue < previousRevenue ? "DOWN" : "FLAT";
+        // The where clause above only matches outlets that still have a distributor, so this is never null here.
+        const distributor = outlet.distributor!;
 
         return {
             id: outlet.id,
@@ -976,9 +985,9 @@ export async function getOutletDashboard(organizationId: string, filters: Pick<D
             type: outlet.type,
             phone: outlet.phoneNumber,
             imageUrl: outlet.imageUrl,
-            region: outlet.distributor.territory.region.name,
-            territory: outlet.distributor.territory.name,
-            distributor: outlet.distributor.name,
+            region: distributor.territory.region.name,
+            territory: distributor.territory.name,
+            distributor: distributor.name,
             createdBy: outlet.createdBy?.displayName ?? "Unknown",
             revenue: currentRevenue,
             orders: orderCountByOutlet.get(outlet.id) ?? 0,
