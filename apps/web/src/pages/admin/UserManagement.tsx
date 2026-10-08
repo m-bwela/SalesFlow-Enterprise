@@ -41,6 +41,7 @@ type UserFilter =
   | "tsm"
   | "asr"
   | "mtsr"
+  | "horeca"
   | "distributor"
   | "online"
   | "login-attempts"
@@ -54,6 +55,7 @@ const userFilters: Array<{ label: string; value: UserFilter }> = [
   { label: "TSMs", value: "tsm" },
   { label: "ASRs", value: "asr" },
   { label: "MTSRs", value: "mtsr" },
+  { label: "Horeca", value: "horeca" },
   { label: "Distributors", value: "distributor" },
   { label: "Online", value: "online" },
   { label: "Login attempts", value: "login-attempts" },
@@ -609,6 +611,7 @@ export function UserManagementPage() {
         if (filter === "tsm") return user.roleCodes.some((role) => ["GT_TSM", "MT_TSM"].includes(role));
         if (filter === "asr") return user.roleCodes.includes("ASR");
         if (filter === "mtsr") return user.roleCodes.includes("MTSR");
+        if (filter === "horeca") return user.roleCodes.includes("HORECA");
         if (filter === "distributor") return user.roleCodes.includes("DISTRIBUTOR");
         return true;
       })
