@@ -61,28 +61,36 @@ function formatPercent(value: number) {
 }
 
 async function getAgents(organizationId: string, now: Date) {
-    const assignments = await prisma.membershipRole.findMany({
-        where: {
-            role: { code: { in: AGENT_ROLE_CODES } },
-            isActive: true,
-            startsAt: { lte: now },
-            OR: [{ endsAt: null }, { endsAt: { gt: now } }],
-            membership: { organizationId, isActive: true, user: { status: { in: ["ACTIVE", "SUSPENDED", "DISABLED"] } } },
-        },
-        select: {
-            regionId: true,
-            territoryId: true,
-            role: { select: { code: true } },
-            membership: { select: { user: { select: { id: true, displayName: true, email: true, phoneNumber: true, status: true } } } },
-        },
-    });
-
-    const regionIds = [...new Set(assignments.flatMap(({ regionId }) => regionId ? [regionId] : []))];
-    const territoryIds = [...new Set(assignments.flatMap(({ territoryId }) => territoryId ? [territoryId] : []))];
-    const [regions, territories] = await Promise.all([
-        regionIds.length ? prisma.region.findMany({ where: { id: { in: regionIds } }, select: { id: true, name: true } }) : Promise.resolve([]),
-        territoryIds.length ? prisma.territory.findMany({ where: { id: { in: territoryIds } }, select: { id: true, name: true, regionId: true } }) : Promise.resolve([]),
+    const [assignments, regions] = await Promise.all([
+        prisma.membershipRole.findMany({
+            where: {
+                role: { code: { in: AGENT_ROLE_CODES } },
+                isActive: true,
+                startsAt: { lte: now },
+                OR: [{ endsAt: null }, { endsAt: { gt: now } }],
+                membership: { organizationId, isActive: true, user: { status: { in: ["ACTIVE", "SUSPENDED", "DISABLED"] } } },
+            },
+            select: {
+                regionId: true,
+                territoryId: true,
+                role: { select: { code: true } },
+                membership: { select: { user: { select: { id: true, displayName: true, email: true, phoneNumber: true, status: true } } } },
+            },
+        }),
+        // Every real region/territory in the org, not just ones with an agent already assigned —
+        // so the filter dropdowns let you pick any of them, the same way other dashboards do.
+        prisma.region.findMany({
+            where: { organizationId, code: { not: { startsWith: "UNASSIGNED" } } },
+            orderBy: { name: "asc" },
+            select: {
+                id: true,
+                name: true,
+                territories: { where: { code: { not: "UNASSIGNED" } }, orderBy: { name: "asc" }, select: { id: true, name: true } },
+            },
+        }),
     ]);
+
+    const territories = regions.flatMap((region) => region.territories.map((territory) => ({ ...territory, regionId: region.id })));
     const regionById = new Map(regions.map((region) => [region.id, region]));
     const territoryById = new Map(territories.map((territory) => [territory.id, territory]));
 
