@@ -3,6 +3,7 @@ import { prisma } from "@salesflow/database";
 import { AppError } from "../../errors/app-error.js";
 import type { ModernTradePeriod } from "./dashboard.types.js";
 import { buildRevenueTrend, getPeriodStart, orderRevenue, DAY_MS, TREND_BUCKETS, UNASSIGNED } from "./modern-trade.service.js";
+import { REVENUE_COUNTED_STATUSES } from "./order-status.js";
 
 const ONLINE_WINDOW_MS = 5 * 60 * 1000;
 
@@ -112,7 +113,7 @@ export async function getMtTsmDashboard(organizationId: string, filters: MtTsmFi
                     createdById: { in: allMtsrIds },
                     orderDate: { gte: periodStart, lte: now },
                     currency: "KES",
-                    status: { notIn: ["DRAFT", "CANCELLED"] },
+                    status: { in: REVENUE_COUNTED_STATUSES },
                 },
                 select: {
                     id: true,

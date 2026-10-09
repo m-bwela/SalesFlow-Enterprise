@@ -74,6 +74,11 @@ export const adminNavigation: NavigationGroup[] = [
                 url: "/admin/reports",
                 icon: FileBarChart,
             },
+            {
+                title: "Order Analytics",
+                url: "/admin/order-analytics",
+                icon: BarChart3,
+            },
         ],
     },
 

@@ -90,6 +90,7 @@ function getLocationRule(roleLabel: string): { regionRequired: boolean; territor
     case "MT TSM":
     case "Field Sales Agent":
     case "Mtsr":
+    case "Horeca":
       return { regionRequired: true, territory: "required", title: "Region and territory", hint: "Where this person works. It shows on their dashboard." };
     case "Distributor":
       return { regionRequired: true, territory: "optional", title: "Distributor coverage", hint: "This is where the distributor appears on the Distributors dashboard once approved." };

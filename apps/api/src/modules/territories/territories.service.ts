@@ -2,6 +2,7 @@ import { prisma } from "@salesflow/database";
 import type { Prisma } from "@prisma/client";
 
 import { AppError } from "../../errors/app-error.js";
+import { REVENUE_COUNTED_STATUSES } from "../dashboard/order-status.js";
 
 const EAT_OFFSET_MS = 3 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -173,7 +174,7 @@ export async function getTerritoriesOverview(organizationId: string) {
                 distributorId: { in: distributorIds },
                 orderDate: { gte: sevenDaysAgo, lte: now },
                 currency: "KES",
-                status: { notIn: ["DRAFT", "CANCELLED"] },
+                status: { in: REVENUE_COUNTED_STATUSES },
             },
             select: { items: { select: { quantity: true, unitPrice: true } } },
         }) : Promise.resolve([]),

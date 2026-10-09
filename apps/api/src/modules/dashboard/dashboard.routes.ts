@@ -5,6 +5,7 @@ import { requirePermission } from "../auth/authorization.js";
 import { getAdminDashboard, getAsrDashboard, getDistributorDashboard, getOutletDashboard, getTsmDashboard } from "./dashboard.service.js";
 import { getModernTradeDashboard, getHorecaDashboard } from "./modern-trade.service.js";
 import { getMtTsmDashboard, reviewInvoice } from "./mt-tsm.service.js";
+import { getOrderAnalyticsOverview, getAgentPerformanceForDay } from "./order-analytics.service.js";
 
 import { z } from "zod";
 
@@ -70,6 +71,65 @@ const mtTsmFilterSchema = z.object({
 const invoiceActionSchema = z.object({
     action: z.enum(["APPROVE", "REJECT"]),
 });
+
+const dateStringSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Expected a date in YYYY-MM-DD format.");
+
+const orderAnalyticsFilterSchema = z.object({
+    startDate: dateStringSchema.optional(),
+    endDate: dateStringSchema.optional(),
+    regionId: z.string().uuid().optional(),
+    territoryId: z.string().uuid().optional(),
+    agentId: z.string().uuid().optional(),
+    granularity: z.enum(["DAILY", "WEEKLY", "MONTHLY"]).optional(),
+});
+
+const agentPerformanceFilterSchema = z.object({
+    date: dateStringSchema,
+});
+
+router.get(
+    "/order-analytics",
+    authenticate,
+    requirePermission("dashboard.view"),
+    async (req, res, next) => {
+        try {
+            const membership = res.locals.membership;
+            if (!membership) {
+                return res.status(403).json({
+                    error: { code: "FORBIDDEN", message: "No active organization membership found." },
+                });
+            }
+
+            const filters = orderAnalyticsFilterSchema.parse(req.query);
+            const dashboard = await getOrderAnalyticsOverview(membership.organizationId, filters);
+            return res.json({ data: dashboard });
+        } catch (error) {
+            return next(error);
+        }
+    },
+);
+
+router.get(
+    "/order-analytics/agent-performance",
+    authenticate,
+    requirePermission("dashboard.view"),
+    async (req, res, next) => {
+        try {
+            const membership = res.locals.membership;
+            if (!membership) {
+                return res.status(403).json({
+                    error: { code: "FORBIDDEN", message: "No active organization membership found." },
+                });
+            }
+
+            const { date } = agentPerformanceFilterSchema.parse(req.query);
+            const result = await getAgentPerformanceForDay(membership.organizationId, date);
+            return res.json({ data: result });
+        } catch (error) {
+            return next(error);
+        }
+    },
+);
 
 router.get(
     "/modern-trade",

@@ -37,10 +37,11 @@ enum DocumentStatus {
 }
 
 enum SalesOrderStatus {
-  DRAFT
+  PENDING
+  PENDING_TSM_REVIEW
+  APPROVED
   CONFIRMED
-  PROCESSING
-  SHIPPED
+  RECEIVED
   DELIVERED
   CANCELLED
 }
@@ -417,7 +418,7 @@ model SalesOrder {
   depotId          String?          @db.Uuid
   createdById      String           @db.Uuid
   orderNumber      String
-  status           SalesOrderStatus @default(CONFIRMED)
+  status           SalesOrderStatus @default(PENDING)
   currency         String           @default("KES") @db.VarChar(3)
   orderDate        DateTime         @default(now())
   expectedDeliveryAt DateTime?

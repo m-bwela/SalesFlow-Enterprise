@@ -2,6 +2,7 @@ import { prisma } from "@salesflow/database";
 import type { Prisma, RoleCode } from "@prisma/client";
 
 import type { ModernTradeFilters, ModernTradePeriod } from "./dashboard.types.js";
+import { REVENUE_COUNTED_STATUSES } from "./order-status.js";
 
 const EAT_OFFSET_MS = 3 * 60 * 60 * 1000;
 const ONLINE_WINDOW_MS = 5 * 60 * 1000;
@@ -149,7 +150,7 @@ export async function getRepChannelDashboard(organizationId: string, repRole: Ex
                     createdById: { in: repIds },
                     orderDate: { gte: periodStart, lte: now },
                     currency: "KES",
-                    status: { notIn: ["DRAFT", "CANCELLED"] },
+                    status: { in: REVENUE_COUNTED_STATUSES },
                 },
                 select: {
                     id: true,

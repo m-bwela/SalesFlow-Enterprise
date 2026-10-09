@@ -121,6 +121,7 @@ function applyRoleLocation(roleCode: RoleCode, location: { regionId: string | nu
 		case "MT_TSM":
 		case "ASR":
 		case "MTSR":
+		case "HORECA":
 			requireRegion();
 			if (!location.territoryId) throw new AppError("TERRITORY_REQUIRED", 400, "Choose a territory for this role.");
 			return { ...location, scopeType: "TERRITORY" as ScopeType };

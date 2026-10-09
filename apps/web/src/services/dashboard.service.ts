@@ -388,6 +388,89 @@ export async function reviewInvoice(orderId: string, action: "APPROVE" | "REJECT
     return response.data;
 }
 
+export type OrderStatus = "PENDING" | "PENDING_TSM_REVIEW" | "APPROVED" | "CONFIRMED" | "RECEIVED" | "DELIVERED" | "CANCELLED";
+export type TrendGranularity = "DAILY" | "WEEKLY" | "MONTHLY";
+
+export interface OrderAnalyticsData {
+    updatedAt: string;
+    currency: string;
+    range: { startDate: string; endDate: string };
+    granularity: TrendGranularity;
+    stats: {
+        todaysOrders: number;
+        todaysRevenue: number;
+        thisWeekRevenue: number;
+        thisMonthRevenue: number;
+        averageOrderValue: number;
+        deliveryRate: number;
+    };
+    revenueTrend: Array<{ bucket: string; revenue: number; orders: number }>;
+    orderVolumeTrend: Array<{ bucket: string; orders: number }>;
+    territoryPerformance: Array<{ territoryId: string; territory: string; revenue: number }>;
+    territoryLeaders: Array<{ territoryId: string; territory: string; revenue: number }>;
+    orderStatusDistribution: Array<{ status: OrderStatus; count: number }>;
+    bestOutlets: Array<{ id: string; name: string; revenue: number; orders: number }>;
+    topAgents: Array<{ id: string; name: string; role: string; revenue: number; orders: number }>;
+    insights: {
+        revenueTrend: string;
+        volume: string;
+        territoryPerformance: string;
+        orderStatus: string;
+    };
+    options: {
+        regions: Array<{ id: string; name: string }>;
+        territories: Array<{ id: string; name: string; regionId: string }>;
+        agents: Array<{ id: string; name: string; roleCode: string; regionId: string | null; territoryId: string | null }>;
+    };
+}
+
+export async function getOrderAnalytics(filters: {
+    startDate?: string;
+    endDate?: string;
+    regionId?: string;
+    territoryId?: string;
+    agentId?: string;
+    granularity?: TrendGranularity;
+}) {
+    const params = new URLSearchParams();
+    if (filters.startDate) params.set("startDate", filters.startDate);
+    if (filters.endDate) params.set("endDate", filters.endDate);
+    if (filters.regionId) params.set("regionId", filters.regionId);
+    if (filters.territoryId) params.set("territoryId", filters.territoryId);
+    if (filters.agentId) params.set("agentId", filters.agentId);
+    if (filters.granularity) params.set("granularity", filters.granularity);
+    const response = await apiFetch<{ data: OrderAnalyticsData }>(`/api/v1/dashboard/order-analytics?${params.toString()}`);
+    return response.data;
+}
+
+export interface AgentPerformanceRow {
+    id: string;
+    name: string;
+    role: string;
+    route: string | null;
+    outlets: number;
+    totalTime: string | null;
+    averagePerOutlet: string | null;
+    revenue: number;
+    start: string | null;
+    end: string | null;
+}
+
+export interface AgentPerformanceData {
+    date: string;
+    currency: string;
+    activeAgentCount: number;
+    rows: AgentPerformanceRow[];
+}
+
+export async function getAgentPerformanceForDay(date: string) {
+    const response = await apiFetch<{ data: AgentPerformanceData }>(
+        `/api/v1/dashboard/order-analytics/agent-performance?date=${encodeURIComponent(date)}`,
+    );
+    return response.data;
+}
+
+
 
 export async function getTsmDashboard(filters: {
     period: TsmDashboardPeriod;

@@ -1,6 +1,7 @@
 import { prisma } from "@salesflow/database";
 
 import type { AsrDashboardPeriod, DashboardFilters, DistributorDashboardPeriod, TsmDashboardFilters, TsmDashboardPeriod } from "./dashboard.types.js";
+import { REVENUE_COUNTED_STATUSES } from "./order-status.js";
 
 const PERIOD_DURATIONS: Record<DashboardFilters["period"], number> = {
     LIVE: 5 * 60 * 1000,
@@ -82,7 +83,7 @@ export async function getDistributorDashboard(organizationId: string, period: Di
                     distributorId: { in: distributorIds },
                     orderDate: { gte: periodStart, lte: now },
                     currency: "KES",
-                    status: { notIn: ["DRAFT", "CANCELLED"] },
+                    status: { in: REVENUE_COUNTED_STATUSES },
                 },
                 select: {
                     distributorId: true,
@@ -97,7 +98,7 @@ export async function getDistributorDashboard(organizationId: string, period: Di
                         distributorId: { in: distributorIds },
                         orderDate: { gte: previousStart, lt: periodStart },
                         currency: "KES",
-                        status: { notIn: ["DRAFT", "CANCELLED"] },
+                        status: { in: REVENUE_COUNTED_STATUSES },
                     },
                     select: {
                         distributorId: true,
@@ -359,7 +360,7 @@ export async function getTsmDashboard(organizationId: string, filters: TsmDashbo
                 distributorId: { in: scopedDistributorIds },
                 orderDate: { gte: start, lt: end },
                 currency: "KES",
-                status: { notIn: ["DRAFT", "CANCELLED"] },
+                status: { in: REVENUE_COUNTED_STATUSES },
             },
             select: {
                 distributorId: true,
@@ -543,7 +544,10 @@ export async function getAdminDashboard(filters: DashboardFilters) {
         prisma.salesOrder.findMany({
             where: {
                 orderDate: createdAtFilter,
-                status: { not: "DRAFT" },
+                // Fetch every order that was actually reviewed one way or another — the still-Pending
+                // ones aren't included, the same way DRAFT orders used to be excluded. CANCELLED is
+                // included so it can be tallied separately below.
+                status: { in: [...REVENUE_COUNTED_STATUSES, "CANCELLED"] },
                 currency: "KES",
                 ...(filters.distributorId ? { distributorId: filters.distributorId } : {}),
                 ...(filters.territoryId || filters.regionId ? {
@@ -585,10 +589,6 @@ export async function getAdminDashboard(filters: DashboardFilters) {
     for (const order of salesOrders) {
         if (order.status === "CANCELLED") {
             cancelledOrders += 1;
-            continue;
-        }
-
-        if (order.status === "DRAFT") {
             continue;
         }
 
@@ -752,7 +752,7 @@ export async function getAsrDashboard(period: AsrDashboardPeriod) {
                 where: {
                     createdById: { in: userIds },
                     currency: "KES",
-                    status: { notIn: ["DRAFT", "CANCELLED"] },
+                    status: { in: REVENUE_COUNTED_STATUSES },
                     orderDate: { gte: start, lt: end },
                 },
                 select: {
@@ -897,7 +897,7 @@ export async function getOutletDashboard(organizationId: string, filters: Pick<D
                     outletId: { in: outletIds },
                     orderDate: { gte: periodStart, lte: now },
                     currency: "KES",
-                    status: { notIn: ["DRAFT", "CANCELLED"] },
+                    status: { in: REVENUE_COUNTED_STATUSES },
                 },
                 select: {
                     outletId: true,
@@ -912,7 +912,7 @@ export async function getOutletDashboard(organizationId: string, filters: Pick<D
                         outletId: { in: outletIds },
                         orderDate: { gte: previousStart, lt: periodStart },
                         currency: "KES",
-                        status: { notIn: ["DRAFT", "CANCELLED"] },
+                        status: { in: REVENUE_COUNTED_STATUSES },
                     },
                     select: { outletId: true, items: { select: { quantity: true, unitPrice: true } } },
                 })
@@ -922,7 +922,7 @@ export async function getOutletDashboard(organizationId: string, filters: Pick<D
                     outletId: { in: outletIds },
                     orderDate: { gte: lastMonthStart, lte: now },
                     currency: "KES",
-                    status: { notIn: ["DRAFT", "CANCELLED"] },
+                    status: { in: REVENUE_COUNTED_STATUSES },
                 },
                 select: { outletId: true, items: { select: { quantity: true, unitPrice: true } } },
             }),
