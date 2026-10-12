@@ -36,6 +36,8 @@ const roleCodes: Record<string, RoleCode> = {
 	"Horeca": "HORECA",
 	"Support": "SUPPORT",
 	"Super Admin": "SUPER_ADMIN",
+	"Cfo": "CFO",
+	"Finance": "FINANCE",
 };
 
 function getEatDayStart(date: Date) {
@@ -113,6 +115,8 @@ function applyRoleLocation(roleCode: RoleCode, location: { regionId: string | nu
 	switch (roleCode) {
 		case "ADMIN":
 		case "SUPER_ADMIN":
+		case "CFO":
+		case "FINANCE":
 			return { ...location, scopeType: "GLOBAL" as ScopeType };
 		case "RSM":
 			requireRegion();

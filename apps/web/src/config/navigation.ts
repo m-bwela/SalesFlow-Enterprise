@@ -20,6 +20,7 @@ import {
     UserRoundCheck,
     Warehouse,
     Workflow,
+    CreditCard,
 } from "lucide-react";
 import type { RoleCode } from "../types/auth";
 
@@ -335,6 +336,11 @@ export const adminNavigation: NavigationGroup[] = [
                 url: "/admin/configuration",
                 icon: Settings,
             },
+            {
+                title: "Payment Configuration",
+                url: "/admin/payments",
+                icon: CreditCard,
+            }
         ],
     },
 ];

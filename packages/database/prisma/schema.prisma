@@ -76,6 +76,15 @@ enum RoleCode {
   DISTRIBUTOR
   HORECA
   SUPPORT
+  CFO
+  FINANCE
+}
+
+enum PaymentMethodCode {
+  MPESA
+  CASH
+  BANK
+  CREDIT
 }
 
 enum ScopeType {
@@ -89,39 +98,39 @@ enum ScopeType {
 // ─── Models ──────────────────────────────────────────────────────────────────
 
 model User {
-  id              String     @id @default(uuid()) @db.Uuid
-  email           String     @unique
-  displayName     String
-  firstName       String?
-  surname         String?
-  phoneNumber     String?
-  profileImageUrl String?
-  departmentId    String?    @db.Uuid
-  transportType   String?
-  homeRegion      String?
-  city            String?
-  streetName      String?
-  blockNumber     String?
+  id                  String     @id @default(uuid()) @db.Uuid
+  email               String     @unique
+  displayName         String
+  firstName           String?
+  surname             String?
+  phoneNumber         String?
+  profileImageUrl     String?
+  departmentId        String?    @db.Uuid
+  transportType       String?
+  homeRegion          String?
+  city                String?
+  streetName          String?
+  blockNumber         String?
   nationalIdFrontPath String?
   nationalIdBackPath  String?
-  lockedUntil     DateTime?
-  passwordHash    String?
-  status          UserStatus @default(ACTIVE)
-  emailVerifiedAt DateTime?
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  lockedUntil         DateTime?
+  passwordHash        String?
+  status              UserStatus @default(ACTIVE)
+  emailVerifiedAt     DateTime?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
 
-  memberships      Membership[]
-  sessions         Session[]
-  createdDocuments Document[]   @relation("DocumentCreatedBy")
-  ownedDocuments   Document[]   @relation("DocumentOwner")
-  createdSalesOrders SalesOrder[] @relation("SalesOrderCreatedBy")
-  reviewedSalesOrders SalesOrder[] @relation("SalesOrderReviewedBy")
-  createdOutlets   Outlet[]      @relation("OutletCreatedBy")
-  loginAttempts   LoginAttempt[]
+  memberships          Membership[]
+  sessions             Session[]
+  createdDocuments     Document[]        @relation("DocumentCreatedBy")
+  ownedDocuments       Document[]        @relation("DocumentOwner")
+  createdSalesOrders   SalesOrder[]      @relation("SalesOrderCreatedBy")
+  reviewedSalesOrders  SalesOrder[]      @relation("SalesOrderReviewedBy")
+  createdOutlets       Outlet[]          @relation("OutletCreatedBy")
+  loginAttempts        LoginAttempt[]
   updatedShiftSettings AsrShiftSetting[] @relation("AsrShiftUpdatedBy")
-  department      Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
-  auditLogs        AuditLog[]   @relation("AuditActor")
+  department           Department?       @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  auditLogs            AuditLog[]        @relation("AuditActor")
 
   @@index([status])
   @@index([departmentId])
@@ -199,17 +208,18 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  regions     Region[]
-  territories Territory[]
-  depots      Depot[]
-  memberships Membership[]
-  documents   Document[]
-  products    Product[]
-  outlets     Outlet[]
-  salesOrders SalesOrder[]
-  departments Department[]
+  regions         Region[]
+  territories     Territory[]
+  depots          Depot[]
+  paymentMethods  PaymentMethod[]
+  memberships     Membership[]
+  documents       Document[]
+  products        Product[]
+  outlets         Outlet[]
+  salesOrders     SalesOrder[]
+  departments     Department[]
   asrShiftSetting AsrShiftSetting?
-  auditLogs   AuditLog[]
+  auditLogs       AuditLog[]
 
   @@map("organizations")
 }
@@ -311,9 +321,9 @@ model Distributor {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  territory  Territory   @relation(fields: [territoryId], references: [id], onDelete: Restrict)
-  warehouses Warehouse[]
-  outlets    Outlet[]
+  territory   Territory    @relation(fields: [territoryId], references: [id], onDelete: Restrict)
+  warehouses  Warehouse[]
+  outlets     Outlet[]
   salesOrders SalesOrder[]
 
   @@unique([territoryId, code])
@@ -360,6 +370,36 @@ model Depot {
   @@map("depots")
 }
 
+// How a payment method can be used: which roles may offer it, and which capabilities it supports
+// (STK push, M-Pesa B2C payout, a reference number, proof-of-payment upload, QR code). Codes are
+// a fixed, hard-coded set (PaymentMethodCode) — admins toggle availability, they don't invent new
+// codes. Every change here is written to AuditLog for a full history.
+model PaymentMethod {
+  id                       String            @id @default(uuid()) @db.Uuid
+  organizationId           String            @db.Uuid
+  code                     PaymentMethodCode
+  label                    String
+  icon                     String
+  isActive                 Boolean           @default(true)
+  sortOrder                Int               @default(0)
+  availableForDistributors Boolean           @default(false)
+  availableForTsm          Boolean           @default(false)
+  availableForAsr          Boolean           @default(false)
+  supportsStk              Boolean           @default(false)
+  supportsB2c              Boolean           @default(false)
+  requiresReference        Boolean           @default(false)
+  requiresProof            Boolean           @default(false)
+  supportsQr               Boolean           @default(false)
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, code])
+  @@index([organizationId, sortOrder])
+  @@map("payment_methods")
+}
+
 model Product {
   id             String   @id @default(uuid()) @db.Uuid
   organizationId String   @db.Uuid
@@ -381,10 +421,10 @@ model Product {
 }
 
 model Outlet {
-  id             String   @id @default(uuid()) @db.Uuid
-  organizationId String   @db.Uuid
-  distributorId  String?  @db.Uuid
-  depotId        String?  @db.Uuid
+  id             String     @id @default(uuid()) @db.Uuid
+  organizationId String     @db.Uuid
+  distributorId  String?    @db.Uuid
+  depotId        String?    @db.Uuid
   code           String
   name           String
   type           OutletType @default(OTHER)
@@ -393,9 +433,9 @@ model Outlet {
   imageUrl       String?
   coolerCount    Int        @default(0)
   createdById    String?    @db.Uuid
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  isActive       Boolean    @default(true)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   distributor  Distributor? @relation(fields: [distributorId], references: [id], onDelete: Restrict)
@@ -411,26 +451,26 @@ model Outlet {
 }
 
 model SalesOrder {
-  id               String           @id @default(uuid()) @db.Uuid
-  organizationId   String           @db.Uuid
-  outletId         String           @db.Uuid
-  distributorId    String?          @db.Uuid
-  depotId          String?          @db.Uuid
-  createdById      String           @db.Uuid
-  orderNumber      String
-  status           SalesOrderStatus @default(PENDING)
-  currency         String           @default("KES") @db.VarChar(3)
-  orderDate        DateTime         @default(now())
+  id                 String              @id @default(uuid()) @db.Uuid
+  organizationId     String              @db.Uuid
+  outletId           String              @db.Uuid
+  distributorId      String?             @db.Uuid
+  depotId            String?             @db.Uuid
+  createdById        String              @db.Uuid
+  orderNumber        String
+  status             SalesOrderStatus    @default(PENDING)
+  currency           String              @default("KES") @db.VarChar(3)
+  orderDate          DateTime            @default(now())
   expectedDeliveryAt DateTime?
-  deliveredAt      DateTime?
-  cancelledAt      DateTime?
-  paymentMethod    String?
-  supplySource     OrderSupplySource @default(DISTRIBUTOR)
-  approvalStatus   OrderApprovalStatus @default(APPROVED)
-  reviewedById     String?          @db.Uuid
-  reviewedAt       DateTime?
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  deliveredAt        DateTime?
+  cancelledAt        DateTime?
+  paymentMethod      String?
+  supplySource       OrderSupplySource   @default(DISTRIBUTOR)
+  approvalStatus     OrderApprovalStatus @default(APPROVED)
+  reviewedById       String?             @db.Uuid
+  reviewedAt         DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
   organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   outlet       Outlet           @relation(fields: [outletId], references: [id], onDelete: Restrict)
@@ -452,14 +492,14 @@ model SalesOrder {
 }
 
 model SalesOrderItem {
-  id            String   @id @default(uuid()) @db.Uuid
-  salesOrderId  String   @db.Uuid
-  productId     String   @db.Uuid
-  productName   String
-  productSku    String
-  quantity      Decimal  @db.Decimal(12, 3)
-  unitPrice     Decimal  @db.Decimal(12, 2)
-  createdAt     DateTime @default(now())
+  id           String   @id @default(uuid()) @db.Uuid
+  salesOrderId String   @db.Uuid
+  productId    String   @db.Uuid
+  productName  String
+  productSku   String
+  quantity     Decimal  @db.Decimal(12, 3)
+  unitPrice    Decimal  @db.Decimal(12, 2)
+  createdAt    DateTime @default(now())
 
   salesOrder SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
   product    Product    @relation(fields: [productId], references: [id], onDelete: Restrict)

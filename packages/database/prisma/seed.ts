@@ -15,6 +15,8 @@ enum RoleCode {
     DISTRIBUTOR = 'DISTRIBUTOR',
     HORECA = 'HORECA',
     SUPPORT = 'SUPPORT',
+    CFO = 'CFO',
+    FINANCE = 'FINANCE',
 }
 
 const roles = [
@@ -68,6 +70,16 @@ const roles = [
         name: 'Support',
         description: 'Provides read-only operational support',
     },
+    {
+        code: RoleCode.CFO,
+        name: 'Chief Financial Officer',
+        description: 'Financial oversight; reviews payment method configuration and audit history',
+    },
+    {
+        code: RoleCode.FINANCE,
+        name: 'Finance',
+        description: 'Finance team oversight; reviews payment method configuration and audit history',
+    },
 ];
 
 const permissions = [
@@ -107,6 +119,9 @@ const permissions = [
 
     ["system.view", "View system configuration"],
     ["system.manage", "Manage system configuration"],
+
+    ["payments.view", "View payment methods"],
+    ["payments.manage", "Manage payment methods"],
 ];
 
 async function main() {
@@ -262,6 +277,24 @@ async function main() {
             "dashboard.view",
             "users.view",
             "audit.view",
+        ],
+
+        [RoleCode.CFO]: [
+            "dashboard.view",
+            "organization.view",
+            "reports.view",
+            "reports.export",
+            "audit.view",
+            "payments.view",
+        ],
+
+        [RoleCode.FINANCE]: [
+            "dashboard.view",
+            "organization.view",
+            "reports.view",
+            "reports.export",
+            "audit.view",
+            "payments.view",
         ],
     };
 
