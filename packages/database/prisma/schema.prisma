@@ -212,6 +212,7 @@ model Organization {
   territories     Territory[]
   depots          Depot[]
   paymentMethods  PaymentMethod[]
+  paymentMethodAudits PaymentMethodAudit[]
   memberships     Membership[]
   documents       Document[]
   products        Product[]
@@ -595,4 +596,19 @@ model MembershipRole {
   @@index([warehouseId])
   @@index([isActive, startsAt, endsAt])
   @@map("membership_roles")
+}
+
+model PaymentMethodAudit {
+  id             String            @id @default(uuid()) @db.Uuid
+  organizationId String            @db.Uuid
+  methodCode     PaymentMethodCode
+  action         String
+  detail         String
+  actorId        String?           @db.Uuid
+  actorName      String?
+  createdAt      DateTime          @default(now())
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, methodCode, createdAt])
+  @@map("payment_method_audits")
 }

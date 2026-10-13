@@ -338,7 +338,7 @@ export const adminNavigation: NavigationGroup[] = [
             },
             {
                 title: "Payment Configuration",
-                url: "/admin/payments",
+                url: "/admin/payment-methods",
                 icon: CreditCard,
             }
         ],

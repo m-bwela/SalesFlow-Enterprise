@@ -383,10 +383,12 @@ async function main() {
         },
         update: {
             name: "Mombasa Territory",
+            organizationId: organization.id,
             isActive: true,
         },
         create: {
             regionId: region.id,
+            organizationId: organization.id,
             code: "MOMBASA",
             name: "Mombasa Territory",
         }
