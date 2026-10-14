@@ -37,6 +37,7 @@ import { TerritoriesPage } from "./pages/admin/TerritoriesPage";
 import { DistributorsPage } from "./pages/admin/DistributorsPage";
 import { UserManagementPage } from "./pages/admin/UserManagement";
 import { RolesPage } from "./pages/admin/RolesPage";
+import PaymentMethods  from "./pages/admin/PaymentMethod";
 
 function PageShell({ title, children }: { title: string; children?: ReactNode }) {
   return (
@@ -97,6 +98,7 @@ function App() {
             <Route path="outlets" element={<OutletsPage />} />
             <Route path="organization" element={<OrganizationStructurePage />} />
             <Route path="regions" element={<RegionsPage />} />
+            <Route path="payment-methods" element={<PaymentMethods />} />
             <Route path="territories" element={<TerritoriesPage />} />
             <Route path="distributors" element={<DistributorsPage />} />
             <Route path="warehouses" element={<WarehousesPage />} />

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Check, ChevronDown, ChevronUp, History, Minus, Pencil, Plus, Trash2 } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, History, Minus, Pencil, Plus, Route, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,10 @@ import {
   type AuditDTO, type FlagKey, type PaymentMethodCode, type PaymentMethodDTO,
 } from "../../../../api/src/modules/payment-methods/payment-methods";
 import { apiFetch } from "@/lib/api";
+import { AppShell } from "@/components/layout/AppShell";
+import { PageContainer } from "@/components/layout/PageContainer";
+import { OrderAnalyticsPage } from "./OrderAnalyticsPage";
+import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 
 // Same prefix as your other modules (check how dashboard calls apiFetch, e.g. "/api/dashboard" vs "/dashboard").
 const BASE = "/payment-methods";
@@ -59,16 +63,13 @@ export default function PaymentMethods() {
   const freeCodes = PAYMENT_CODES.filter(c => !methods.some(m => m.code === c));
 
   return (
-    <main className="mx-auto max-w-[1200px] space-y-5 p-6">
-      <header className="space-y-1.5">
-        <h1 className="text-3xl font-semibold tracking-tight">Payment Methods</h1>
-        <p className="max-w-[70ch] text-sm text-muted-foreground">
-          Codes are hard-coded; admins choose from MPESA / Cash / Bank / Credit and toggle per-role availability.
-          Every change is audited and emailed to Admin / CFO / Finance.
-        </p>
-      </header>
+    <AppShell>
+      <PageContainer>
+       <div className="space y-6">
+          <DashboardHeader title="Payment Methods" description="Codes are hard-coded; admins choose from MPESA / Cash / Bank / Credit and toggle per-role availability.
+          Every change is audited and emailed to Admin / CFO / Finance." />
 
-      <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3">
         <Button disabled={!freeCodes.length} onClick={() => setDialog({ type: "add" })}>
           <Plus className="size-4" /> Add Method
         </Button>
@@ -114,6 +115,17 @@ export default function PaymentMethods() {
                     <FlagCell on={m[k]} label={`${m.code} ${FLAGS[k]}`} onToggle={() => run(`/${m.code}`, "PATCH", { [k]: !m[k] })} />
                   </TableCell>
                 ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+       </div>
+
+      <div>
+        <Table>
+            <TableBody>
+              <TableRow>
                 <TableCell>
                   <div className="flex items-center justify-center gap-1">
                     <Button variant="ghost" size="icon" className="size-7" disabled={i === 0} aria-label="Move up"
@@ -132,7 +144,6 @@ export default function PaymentMethods() {
                   </div>
                 </TableCell>
               </TableRow>
-            ))}
           </TableBody>
         </Table>
       </div>
@@ -151,8 +162,10 @@ export default function PaymentMethods() {
       </section>
 
       <MethodDialog dialog={dialog} freeCodes={freeCodes} run={run} onClose={() => setDialog(null)} />
-    </main>
-  );
+
+     </PageContainer>
+    </AppShell>
+    
 }
 
 function FlagCell({ on, label, onToggle }: { on: boolean; label: string; onToggle: () => void }) {
