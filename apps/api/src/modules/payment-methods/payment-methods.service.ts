@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
 import { Prisma, prisma, type PaymentMethodCode } from "@salesflow/database";
-import { FLAGS, FLAG_KEYS } from "../payment-methods/payment-methods.js"
-import { DEFAULT_METHOD, type Actor, type UpdateMethodInput } from "./payment-methods.types.js"
+import { FLAGS, FLAG_KEYS } from "./payment-methods.js"
+import { DEFAULT_METHOD, type Actor, type UpdateMethodInput } from "../payment-methods/payment-methods.types.js"
 
 // TODO: swap for the error class in apps/api/src/errors if you have an equivalent.
 export class HttpError extends Error {
