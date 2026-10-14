@@ -1,6 +1,6 @@
 import { Router, type Request, type RequestHandler, type Response } from "express";
 import { Prisma, type PaymentMethodCode } from "@salesflow/database";
-import { PAYMENT_CODES } from "../payment-methods/payment-methods.js";
+import { PAYMENT_CODES } from "@salesflow/shared";
 import { z } from "zod";
 import { requirePermission } from "../auth/authorization.js" // TODO: your existing permission guard
 import * as service from "./payment-methods.service.js"
