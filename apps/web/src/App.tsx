@@ -21,6 +21,7 @@ import { OrderAnalyticsPage } from "./pages/admin/OrderAnalyticsPage";
 import { OnlineUsersPage } from "./pages/admin/OnlineUsersPage";
 import { OrganizationStructurePage } from "./pages/admin/OrganizationStructure";
 import { OutletsPage } from "./pages/admin/OutletsPage";
+import  PaymentMethods  from "./pages/admin/PaymentMethod";
 import { PerformancePage } from "./pages/admin/PerformancePage";
 import { ProductsPage } from "./pages/admin/ProductsPage";
 import { ReportsPage } from "./pages/admin/ReportsPage";
@@ -117,7 +118,6 @@ function App() {
             <Route path="modern-trade/sales" element={<ModernTradeSalesPage />} />
             <Route path="horeca-dashboard" element={<HorecaDashboardPage />} />
             <Route path="order-analytics" element={<OrderAnalyticsPage />} />
-            <Route path="payment-methods" element={<PaymentMethodsPage />} />
           </Route>
 
           <Route path="/rsm" element={<RoleRoute allowedRoles={["RSM"]} />}>

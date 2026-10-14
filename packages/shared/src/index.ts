@@ -1,4 +1,3 @@
-// Shared by server and client. Copy into both packages if you don't have a shared workspace.
 export const PAYMENT_CODES = ["MPESA", "CASH", "BANK", "CREDIT"] as const;
 export type PaymentMethodCode = (typeof PAYMENT_CODES)[number];
 

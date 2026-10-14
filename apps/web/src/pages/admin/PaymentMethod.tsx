@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Check, ChevronDown, ChevronUp, History, Minus, Pencil, Plus, Route, Trash2 } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, History, Minus, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,20 +8,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import {
-  FLAGS, FLAG_KEYS, PAYMENT_CODES,
-  type AuditDTO, type FlagKey, type PaymentMethodCode, type PaymentMethodDTO,
-} from "../../../../api/src/modules/payment-methods/payment-methods";
 import { apiFetch } from "@/lib/api";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageContainer } from "@/components/layout/PageContainer";
-import { OrderAnalyticsPage } from "./OrderAnalyticsPage";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+// Needs the packages/shared workspace (@salesflow/shared) linked into apps/web.
+import {
+  FLAGS, FLAG_KEYS, PAYMENT_CODES,
+  type AuditDTO, type PaymentMethodCode, type PaymentMethodDTO,
+} from "@salesflow/shared";
 
 // Same prefix as your other modules (check how dashboard calls apiFetch, e.g. "/api/dashboard" vs "/dashboard").
 const BASE = "/payment-methods";
 
-// Uses your apiFetch: base URL, cookies and ApiError (its message is shown in the toasts).
+// Uses your apiFetch: base URL, cookies and ApiError (its message is shown in the error banner).
 const api = <T,>(path = "", method = "GET", body?: unknown): Promise<T> =>
   apiFetch<T>(`${BASE}${path}`, { method, body: body ? JSON.stringify(body) : undefined });
 
@@ -31,11 +31,13 @@ type DialogState =
   | null;
 
 const fmt = (iso: string) => new Date(iso).toLocaleString();
+const msg = (e: unknown) => (e instanceof Error ? e.message : "Something went wrong");
 
 export default function PaymentMethods() {
   const [methods, setMethods] = useState<PaymentMethodDTO[]>([]);
   const [audit, setAudit] = useState<AuditDTO[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [dialog, setDialog] = useState<DialogState>(null);
 
   const loadAudit = useCallback(() => {
@@ -45,6 +47,7 @@ export default function PaymentMethods() {
   useEffect(() => {
     api<PaymentMethodDTO[]>()
       .then(setMethods)
+      .catch(e => setError(msg(e)))
       .finally(() => setLoading(false));
     loadAudit();
   }, [loadAudit]);
@@ -53,9 +56,11 @@ export default function PaymentMethods() {
   async function run(path: string, method: string, body?: unknown): Promise<boolean> {
     try {
       setMethods(await api<PaymentMethodDTO[]>(path, method, body));
+      setError("");
       loadAudit();
       return true;
     } catch (e) {
+      setError(msg(e));
       return false;
     }
   }
@@ -65,107 +70,111 @@ export default function PaymentMethods() {
   return (
     <AppShell>
       <PageContainer>
-       <div className="space y-6">
-          <DashboardHeader title="Payment Methods" description="Codes are hard-coded; admins choose from MPESA / Cash / Bank / Credit and toggle per-role availability.
-          Every change is audited and emailed to Admin / CFO / Finance." />
+        <div className="space-y-6">
+          <DashboardHeader
+            title="Payment Methods"
+            description={
+              "Codes are hard-coded; admins choose from MPESA / Cash / Bank / Credit and toggle per-role availability. " +
+              "Every change is audited and emailed to Admin / CFO / Finance."
+            }
+          />
 
           <div className="flex items-center gap-3">
-        <Button disabled={!freeCodes.length} onClick={() => setDialog({ type: "add" })}>
-          <Plus className="size-4" /> Add Method
-        </Button>
-        {!freeCodes.length && !loading && <span className="text-sm text-muted-foreground">All four codes are already in use.</span>}
-      </div>
+            <Button disabled={!freeCodes.length} onClick={() => setDialog({ type: "add" })}>
+              <Plus className="size-4" /> Add Method
+            </Button>
+            {!freeCodes.length && !loading && (
+              <span className="text-sm text-muted-foreground">All four codes are already in use.</span>
+            )}
+          </div>
 
-      <div className="rounded-lg border bg-card">
-        <Table className="min-w-[1040px]">
-          <TableHeader>
-            <TableRow>
-              <TableHead className="text-center">Icon</TableHead>
-              <TableHead>Code</TableHead>
-              <TableHead>Label</TableHead>
-              <TableHead className="text-center">Active</TableHead>
-              {FLAG_KEYS.map(k => <TableHead key={k} className="text-center">{FLAGS[k]}</TableHead>)}
-              <TableHead className="text-center">Order</TableHead>
-              <TableHead className="text-center">Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading && (
-              <TableRow><TableCell colSpan={14} className="py-8 text-center text-muted-foreground">Loading payment methods…</TableCell></TableRow>
-            )}
-            {!loading && !methods.length && (
-              <TableRow><TableCell colSpan={14} className="py-8 text-center text-muted-foreground">No payment methods yet. Use + Add Method to enable one.</TableCell></TableRow>
-            )}
-            {methods.map((m, i) => (
-              <TableRow key={m.id}>
-                <TableCell className="text-center">
-                  <span className="inline-grid size-9 place-items-center rounded-lg bg-primary/10 text-lg" aria-hidden>{m.icon}</span>
-                </TableCell>
-                <TableCell className={cn("font-semibold", !m.isActive && "opacity-55")}>{m.code}</TableCell>
-                <TableCell className={cn(!m.isActive && "opacity-55")}>{m.label}</TableCell>
-                <TableCell className="text-center">
-                  <Switch
-                    checked={m.isActive}
-                    aria-label={`Active: ${m.code}`}
-                    onCheckedChange={v => run(`/${m.code}`, "PATCH", { isActive: v })}
-                  />
-                </TableCell>
-                {FLAG_KEYS.map(k => (
-                  <TableCell key={k} className={cn("text-center", !m.isActive && "opacity-55")}>
-                    <FlagCell on={m[k]} label={`${m.code} ${FLAGS[k]}`} onToggle={() => run(`/${m.code}`, "PATCH", { [k]: !m[k] })} />
-                  </TableCell>
+          {error && (
+            <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+              {error}
+            </div>
+          )}
+
+          <div className="rounded-lg border bg-card">
+            <Table className="min-w-[1040px]">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-center">Icon</TableHead>
+                  <TableHead>Code</TableHead>
+                  <TableHead>Label</TableHead>
+                  <TableHead className="text-center">Active</TableHead>
+                  {FLAG_KEYS.map(k => <TableHead key={k} className="text-center">{FLAGS[k]}</TableHead>)}
+                  <TableHead className="text-center">Order</TableHead>
+                  <TableHead className="text-center">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading && (
+                  <TableRow><TableCell colSpan={14} className="py-8 text-center text-muted-foreground">Loading payment methods…</TableCell></TableRow>
+                )}
+                {!loading && !methods.length && (
+                  <TableRow><TableCell colSpan={14} className="py-8 text-center text-muted-foreground">No payment methods yet. Use + Add Method to enable one.</TableCell></TableRow>
+                )}
+                {methods.map((m, i) => (
+                  <TableRow key={m.id}>
+                    <TableCell className="text-center">
+                      <span className="inline-grid size-9 place-items-center rounded-lg bg-primary/10 text-lg" aria-hidden>{m.icon}</span>
+                    </TableCell>
+                    <TableCell className={cn("font-semibold", !m.isActive && "opacity-55")}>{m.code}</TableCell>
+                    <TableCell className={cn(!m.isActive && "opacity-55")}>{m.label}</TableCell>
+                    <TableCell className="text-center">
+                      <Switch
+                        checked={m.isActive}
+                        aria-label={`Active: ${m.code}`}
+                        onCheckedChange={v => run(`/${m.code}`, "PATCH", { isActive: v })}
+                      />
+                    </TableCell>
+                    {FLAG_KEYS.map(k => (
+                      <TableCell key={k} className={cn("text-center", !m.isActive && "opacity-55")}>
+                        <FlagCell on={m[k]} label={`${m.code} ${FLAGS[k]}`} onToggle={() => run(`/${m.code}`, "PATCH", { [k]: !m[k] })} />
+                      </TableCell>
+                    ))}
+                    {/* Order and Action must stay inside this row: m and i only exist inside methods.map */}
+                    <TableCell>
+                      <div className="flex items-center justify-center gap-1">
+                        <Button variant="ghost" size="icon" className="size-7" disabled={i === 0} aria-label="Move up"
+                          onClick={() => run(`/${m.code}/move`, "POST", { direction: "up" })}><ChevronUp className="size-4" /></Button>
+                        <span className="w-4 text-center text-sm font-medium">{i + 1}</span>
+                        <Button variant="ghost" size="icon" className="size-7" disabled={i === methods.length - 1} aria-label="Move down"
+                          onClick={() => run(`/${m.code}/move`, "POST", { direction: "down" })}><ChevronDown className="size-4" /></Button>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex justify-center gap-1.5">
+                        <Button variant="outline" size="sm" onClick={() => setDialog({ type: "edit", method: m })}><Pencil className="size-3.5" /> Edit</Button>
+                        <Button variant="outline" size="sm" onClick={() => setDialog({ type: "history", method: m })}><History className="size-3.5" /> History</Button>
+                        <Button variant="outline" size="sm" className="text-destructive hover:text-destructive"
+                          onClick={() => setDialog({ type: "delete", method: m })}><Trash2 className="size-3.5" /> Delete</Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-       </div>
+              </TableBody>
+            </Table>
+          </div>
 
-      <div>
-        <Table>
-            <TableBody>
-              <TableRow>
-                <TableCell>
-                  <div className="flex items-center justify-center gap-1">
-                    <Button variant="ghost" size="icon" className="size-7" disabled={i === 0} aria-label="Move up"
-                      onClick={() => run(`/${m.code}/move`, "POST", { direction: "up" })}><ChevronUp className="size-4" /></Button>
-                    <span className="w-4 text-center text-sm font-medium">{i + 1}</span>
-                    <Button variant="ghost" size="icon" className="size-7" disabled={i === methods.length - 1} aria-label="Move down"
-                      onClick={() => run(`/${m.code}/move`, "POST", { direction: "down" })}><ChevronDown className="size-4" /></Button>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex justify-center gap-1.5">
-                    <Button variant="outline" size="sm" onClick={() => setDialog({ type: "edit", method: m })}><Pencil className="size-3.5" /> Edit</Button>
-                    <Button variant="outline" size="sm" onClick={() => setDialog({ type: "history", method: m })}><History className="size-3.5" /> History</Button>
-                    <Button variant="outline" size="sm" className="text-destructive hover:text-destructive"
-                      onClick={() => setDialog({ type: "delete", method: m })}><Trash2 className="size-3.5" /> Delete</Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-          </TableBody>
-        </Table>
-      </div>
+          <section className="space-y-2.5">
+            <h2 className="text-lg font-semibold">Audit log</h2>
+            <ul className="divide-y rounded-lg border bg-card text-sm">
+              {!audit.length && <li className="p-4 text-muted-foreground">No changes recorded yet.</li>}
+              {audit.map(a => (
+                <li key={a.id} className="flex flex-wrap justify-between gap-x-4 gap-y-1 px-4 py-2.5">
+                  <span><b>{a.methodCode}</b> {a.detail} <span className="text-muted-foreground">by {a.actorName ?? "unknown"}</span></span>
+                  <time className="text-muted-foreground">{fmt(a.createdAt)}</time>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </div>
 
-      <section className="space-y-2.5">
-        <h2 className="text-lg font-semibold">Audit log</h2>
-        <ul className="divide-y rounded-lg border bg-card text-sm">
-          {!audit.length && <li className="p-4 text-muted-foreground">No changes recorded yet.</li>}
-          {audit.map(a => (
-            <li key={a.id} className="flex flex-wrap justify-between gap-x-4 gap-y-1 px-4 py-2.5">
-              <span><b>{a.methodCode}</b> {a.detail} <span className="text-muted-foreground">by {a.actorName ?? "unknown"}</span></span>
-              <time className="text-muted-foreground">{fmt(a.createdAt)}</time>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <MethodDialog dialog={dialog} freeCodes={freeCodes} run={run} onClose={() => setDialog(null)} />
-
-     </PageContainer>
+        <MethodDialog dialog={dialog} freeCodes={freeCodes} run={run} onClose={() => setDialog(null)} />
+      </PageContainer>
     </AppShell>
-    
+  );
 }
 
 function FlagCell({ on, label, onToggle }: { on: boolean; label: string; onToggle: () => void }) {

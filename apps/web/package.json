@@ -12,6 +12,7 @@
   "dependencies": {
     "@base-ui/react": "^1.8.0",
     "@fontsource-variable/geist": "^5.3.0",
+    "@salesflow/shared": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.3.0",
     "lucide-react": "^1.47.0",

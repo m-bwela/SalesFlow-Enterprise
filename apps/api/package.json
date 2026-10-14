@@ -13,6 +13,7 @@
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "@salesflow/database": "workspace:*",
+    "@salesflow/shared": "workspace:*",
     "argon2": "^0.45.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
