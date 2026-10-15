@@ -22,8 +22,11 @@ import {
 const BASE = "/api/v1/payment-methods";
 
 // Uses your apiFetch: base URL, cookies and ApiError (its message is shown in the error banner).
-const api = <T,>(path = "", method = "GET", body?: unknown): Promise<T> =>
-  apiFetch<T>(`${BASE}${path}`, { method, body: body ? JSON.stringify(body) : undefined });
+const api = async <T,>(path = "", method = "GET", body?: unknown): Promise<T> =>
+  (await apiFetch<{ data: T }>(`${BASE}${path}`, {
+    method,
+    body: body ? JSON.stringify(body) : undefined,
+  })).data;
 
 type DialogState =
   | { type: "add" }
@@ -41,16 +44,18 @@ export default function PaymentMethods() {
   const [dialog, setDialog] = useState<DialogState>(null);
 
   const loadAudit = useCallback(() => {
-    api<AuditDTO[]>("/audit").then(setAudit).catch(() => undefined);
-  }, []);
+  api<AuditDTO[]>("/audit")
+    .then(list => setAudit(Array.isArray(list) ? list : []))
+    .catch(() => undefined);
+}, []);
 
   useEffect(() => {
-    api<PaymentMethodDTO[]>()
-      .then(setMethods)
-      .catch(e => setError(msg(e)))
-      .finally(() => setLoading(false));
-    loadAudit();
-  }, [loadAudit]);
+  api<PaymentMethodDTO[]>()
+    .then(list => setMethods(Array.isArray(list) ? list : []))
+    .catch(e => setError(msg(e)))
+    .finally(() => setLoading(false));
+  loadAudit();
+}, [loadAudit]);
 
   // Every mutation returns the fresh list, so the table always mirrors the database.
   async function run(path: string, method: string, body?: unknown): Promise<boolean> {
@@ -98,13 +103,13 @@ export default function PaymentMethods() {
             <Table className="min-w-[1040px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-center">Icon</TableHead>
-                  <TableHead>Code</TableHead>
-                  <TableHead>Label</TableHead>
-                  <TableHead className="text-center">Active</TableHead>
+                  <TableHead className="text-center">ICON</TableHead>
+                  <TableHead>CODE</TableHead>
+                  <TableHead>LABEL</TableHead>
+                  <TableHead className="text-center">ACTIVE</TableHead>
                   {FLAG_KEYS.map(k => <TableHead key={k} className="text-center">{FLAGS[k]}</TableHead>)}
-                  <TableHead className="text-center">Order</TableHead>
-                  <TableHead className="text-center">Action</TableHead>
+                  <TableHead className="text-center">ORDER</TableHead>
+                  <TableHead className="text-center">ACTION</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

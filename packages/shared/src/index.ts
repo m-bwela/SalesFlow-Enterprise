@@ -3,7 +3,7 @@ export type PaymentMethodCode = (typeof PAYMENT_CODES)[number];
 
 // Editable per-method flags: column name -> table header. Order here is the column order.
 export const FLAGS = {
-  availableForDistributors: "Distributors",
+  availableForDistributors: "DISTRIBUTORS",
   availableForTsm: "TSM",
   availableForAsr: "ASR/MTSR",
   supportsStk: "STK",

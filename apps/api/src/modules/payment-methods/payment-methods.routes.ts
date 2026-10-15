@@ -1,59 +1,83 @@
 import { Router, type Request, type RequestHandler, type Response } from "express";
 import { Prisma, type PaymentMethodCode } from "@salesflow/database";
 import { PAYMENT_CODES } from "@salesflow/shared";
-import { z } from "zod";
-import { requirePermission } from "../auth/authorization.js" // TODO: your existing permission guard
-import * as service from "./payment-methods.service.js"
+
+import { authenticate } from "../auth/auth.middleware.js";
+import { requirePermission } from "../auth/authorization.js";
+import * as service from "./payment-methods.service.js";
 import { HttpError } from "./payment-methods.service.js";
 import { moveSchema, updateMethodSchema, type Actor } from "./payment-methods.types.js";
 
-type AuthedRequest = Request & { user: Actor };
-type Handler = (req: AuthedRequest, res: Response) => Promise<void>;
+const router = Router();
 
-// Express 4 doesn't catch async errors, so map them to JSON here.
-// If your errors/ folder already has a central handler, call next(e) instead.
-const wrap = (fn: Handler): RequestHandler => (req, res) => {
-  fn(req as AuthedRequest, res).catch((e: unknown) => {
-    if (e instanceof HttpError) return void res.status(e.status).json({ error: { code: "PAYMENT_METHOD_ERROR", message: e.message } });
-    if (e instanceof z.ZodError) return void res.status(400).json({ error: { code: "VALIDATION_ERROR", message: e.issues[0]?.message ?? "Invalid request" } });
-    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002")
-      return void res.status(409).json({ error: { code: "DUPLICATE", message: "That payment method already exists" } });
-    console.error(e);
-    res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Server error" } });
-  });
+const view = [authenticate, requirePermission("payments.view")];
+const manage = [authenticate, requirePermission("payments.manage")];
+
+// authenticate puts the user and active membership in res.locals (same as dashboard.routes.ts).
+function getActor(res: Response): Actor | null {
+    const { membership, user } = res.locals;
+    if (!membership || !user) return null;
+    return {
+        id: user.id,
+        name: user.displayName ?? user.email ?? "Unknown",
+        organizationId: membership.organizationId,
+    };
+}
+
+const parseCode = (value: unknown): PaymentMethodCode => {
+    if (!PAYMENT_CODES.includes(value as PaymentMethodCode)) {
+        throw new HttpError(400, "Unknown payment code");
+    }
+    return value as PaymentMethodCode;
 };
 
-const parseCode = (v: unknown): PaymentMethodCode => {
-  if (!PAYMENT_CODES.includes(v as PaymentMethodCode)) throw new HttpError(400, "Unknown payment code");
-  return v as PaymentMethodCode;
+// Wraps a handler: resolves the actor, answers { data }, and maps known errors to { error: { code, message } }.
+// Anything else (e.g. ZodError) goes to next(), like the dashboard routes.
+const handle = (
+    fn: (actor: Actor, req: Request) => Promise<unknown>,
+    status = 200,
+): RequestHandler => async (req, res, next) => {
+    try {
+        const actor = getActor(res);
+        if (!actor) {
+            return res.status(403).json({
+                error: { code: "FORBIDDEN", message: "No active organization membership found." },
+            });
+        }
+        return res.status(status).json({ data: await fn(actor, req) });
+    } catch (error) {
+        if (error instanceof HttpError) {
+            return res.status(error.status).json({ error: { code: "PAYMENT_METHOD_ERROR", message: error.message } });
+        }
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+            return res.status(409).json({ error: { code: "DUPLICATE", message: "That payment method already exists." } });
+        }
+        return next(error);
+    }
 };
 
-const view = requirePermission("payments.view");
-const manage = requirePermission("payments.manage");
+router.get("/", ...view, handle(actor => service.listMethods(actor.organizationId)));
 
-export const paymentMethodsRouter = Router();
-
-paymentMethodsRouter.get("/", view, wrap(async (req, res) => {
-  res.json(await service.listMethods(req.user.organizationId));
+router.get("/audit", ...view, handle(async (actor, req) => {
+    const code = req.query.code ? parseCode(req.query.code) : undefined;
+    return service.listAudit(actor.organizationId, code);
 }));
 
-paymentMethodsRouter.get("/audit", view, wrap(async (req, res) => {
-  const code = req.query.code ? parseCode(req.query.code) : undefined;
-  res.json(await service.listAudit(req.user.organizationId, code));
-}));
+router.post("/", ...manage, handle(
+    (actor, req) => service.addMethod(actor, parseCode(req.body?.code)),
+    201,
+));
 
-paymentMethodsRouter.post("/", manage, wrap(async (req, res) => {
-  res.status(201).json(await service.addMethod(req.user, parseCode(req.body?.code)));
-}));
+router.patch("/:code", ...manage, handle(
+    (actor, req) => service.updateMethod(actor, parseCode(req.params.code), updateMethodSchema.parse(req.body)),
+));
 
-paymentMethodsRouter.patch("/:code", manage, wrap(async (req, res) => {
-  res.json(await service.updateMethod(req.user, parseCode(req.params.code), updateMethodSchema.parse(req.body)));
-}));
+router.post("/:code/move", ...manage, handle(
+    (actor, req) => service.moveMethod(actor, parseCode(req.params.code), moveSchema.parse(req.body).direction),
+));
 
-paymentMethodsRouter.post("/:code/move", manage, wrap(async (req, res) => {
-  res.json(await service.moveMethod(req.user, parseCode(req.params.code), moveSchema.parse(req.body).direction));
-}));
+router.delete("/:code", ...manage, handle(
+    (actor, req) => service.deleteMethod(actor, parseCode(req.params.code)),
+));
 
-paymentMethodsRouter.delete("/:code", manage, wrap(async (req, res) => {
-  res.json(await service.deleteMethod(req.user, parseCode(req.params.code)));
-}));
+export default router;
