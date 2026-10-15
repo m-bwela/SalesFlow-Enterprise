@@ -18,8 +18,8 @@ import {
   type AuditDTO, type PaymentMethodCode, type PaymentMethodDTO,
 } from "@salesflow/shared";
 
-// Same prefix as your other modules (check how dashboard calls apiFetch, e.g. "/api/dashboard" vs "/dashboard").
-const BASE = "/payment-methods";
+
+const BASE = "/api/v1/payment-methods";
 
 // Uses your apiFetch: base URL, cookies and ApiError (its message is shown in the error banner).
 const api = <T,>(path = "", method = "GET", body?: unknown): Promise<T> =>

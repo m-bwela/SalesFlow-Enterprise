@@ -1,6 +1,7 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.js';
 import type { RoleCode } from '../types/auth.js';
+import { Spinner } from "@/components/ui/spinner";
 
 interface RoleRouteProps {
     allowedRoles: RoleCode[];
@@ -10,7 +11,11 @@ export function RoleRoute({ allowedRoles }: RoleRouteProps) {
     const { auth, loading } = useAuth();
 
     if (loading) {
-        return <div>Loading SalesFlow...</div>;
+        return (
+            <div>
+                <Spinner className="m-auto block text-center my-4 align-middle animate-spin items-center" aria-label="Loading spinner"/>
+            </div>
+        );
     }
 
     if (!auth) {
