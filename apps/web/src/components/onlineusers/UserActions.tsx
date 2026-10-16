@@ -1,77 +1,90 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowRightLeft, LogIn, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { api, ROLES, roleLabel } from "@/lib/api";
+import { userManagementService, type OnlineUser } from "@/services/userManagement.service";
 
-export type OnlineUser = {
-  id: string; displayName: string; email: string; phoneNumber: string | null;
-  department: string; role: string | null; lastSeenAt: string | null; isOnline: boolean;
-};
+export const ROLES = [
+  ["ADMIN", "Admin"], ["SUPER_ADMIN", "Super Admin"], ["RSM", "Regional Sales Manager"],
+  ["GT_TSM", "General Trade TSM"], ["MT_TSM", "Modern Trade TSM"], ["MTSR", "Mtsr"],
+  ["ASR", "Field Sales Agent"], ["DISTRIBUTOR", "Distributor"], ["HORECA", "Horeca"],
+  ["SUPPORT", "Support"], ["CFO", "CFO"], ["FINANCE", "Finance"],
+] as const;
+export const roleLabel = (code: string) => ROLES.find(([c]) => c === code)?.[1] ?? code;
 
-type Step = "menu" | "role" | "edit";
+type Step = "menu" | "role";
 const cards = [
   { k: "role", label: "Change role", hint: "Reassign permissions", Icon: ArrowRightLeft },
   { k: "edit", label: "Edit", hint: "Update details", Icon: Pencil },
   { k: "login", label: "Login", hint: "View as this user", Icon: LogIn },
 ] as const;
 
-export function UserActions({ user, open, onClose }: { user: OnlineUser | null; open: boolean; onClose: () => void }) {
-  const qc = useQueryClient();
+type Props = {
+  user: OnlineUser | null;
+  open: boolean;
+  onClose: () => void;
+  onChanged: () => void;
+  onEdit?: (userId: string) => void; // hook up your existing edit dialog here
+};
+
+export function UserActions({ user, open, onClose, onChanged, onEdit }: Props) {
   const [step, setStep] = useState<Step>("menu");
-  const [form, setForm] = useState({ displayName: "", email: "", phoneNumber: "", roleCode: "" });
+  const [roleCode, setRoleCode] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  const finish = () => {
-    qc.invalidateQueries({ queryKey: ["online-users"] });
-    setStep("menu");
-    onClose();
+  const close = () => { setStep("menu"); onClose(); };
+
+  const run = async (fn: () => Promise<unknown>, ok: string) => {
+    setBusy(true);
+    try {
+      await fn();
+      toast.success(ok);
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Something went wrong");
+      return false;
+    } finally {
+      setBusy(false);
+    }
   };
-  const onError = (e: Error) => toast.error(e.message);
-
-  const changeRole = useMutation({
-    mutationFn: () => api(`/users/${user!.id}/role`, { method: "PATCH", body: JSON.stringify({ roleCode: form.roleCode }) }),
-    onSuccess: () => { toast.success("Role updated"); finish(); }, onError,
-  });
-  const edit = useMutation({
-    mutationFn: () => api(`/users/${user!.id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ displayName: form.displayName, email: form.email, phoneNumber: form.phoneNumber }),
-    }),
-    onSuccess: () => { toast.success("User updated"); finish(); }, onError,
-  });
-  const login = useMutation({
-    mutationFn: () => api(`/users/${user!.id}/impersonate`, { method: "POST" }),
-    onSuccess: (res) => {
-      // TODO: wire to your session flow once the auth pieces are added
-      console.log("impersonation session", res);
-    }, onError,
-  });
 
   if (!user) return null;
-  const pick = (k: string) => {
-    if (k === "login") return login.mutate();
-    setForm({ displayName: user.displayName, email: user.email, phoneNumber: user.phoneNumber ?? "", roleCode: user.role ?? "" });
-    setStep(k as Step);
+
+  const pick = async (k: string) => {
+    if (k === "role") { setRoleCode(user.role ?? ""); setStep("role"); return; }
+    if (k === "edit") {
+      if (onEdit) { onEdit(user.id); close(); } else toast.info("Connect your existing edit dialog here");
+      return;
+    }
+    // k === "login"
+    if (await run(() => userManagementService.impersonate(user.id), "Opening session…")) {
+      window.location.assign("/");
+    }
+  };
+
+  const saveRole = async () => {
+    if (await run(() => userManagementService.changeRole(user.id, roleCode), "Role updated")) {
+      onChanged();
+      close();
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) { setStep("menu"); onClose(); } }}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) close(); }}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{step === "menu" ? user.displayName : step === "role" ? "Change role" : "Edit user"}</DialogTitle>
+          <DialogTitle>{step === "menu" ? user.displayName : "Change role"}</DialogTitle>
           <DialogDescription>{user.role ? roleLabel(user.role) : "No role"} · {user.department}</DialogDescription>
         </DialogHeader>
 
         {step === "menu" && (
           <div className="grid gap-3 sm:grid-cols-3">
             {cards.map(({ k, label, hint, Icon }) => (
-              <button key={k} onClick={() => pick(k)} disabled={k === "login" && login.isPending}
-                className="rounded-lg border p-4 text-center transition hover:border-primary hover:bg-accent focus-visible:outline focus-visible:outline-2">
+              <button key={k} disabled={busy} onClick={() => pick(k)}
+                className="rounded-lg border p-4 text-center transition hover:border-primary hover:bg-accent focus-visible:outline focus-visible:outline-2 disabled:opacity-50">
                 <Icon className="mx-auto mb-2 h-7 w-7 text-primary" />
                 <b className="block">{label}</b>
                 <span className="text-xs text-muted-foreground">{hint}</span>
@@ -81,33 +94,19 @@ export function UserActions({ user, open, onClose }: { user: OnlineUser | null; 
         )}
 
         {step === "role" && (
-          <div className="space-y-2">
-            <Label>New role</Label>
-            <Select value={form.roleCode} onValueChange={(roleCode) => setForm({ ...form, roleCode })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{ROLES.map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-        )}
-
-        {step === "edit" && (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {([["displayName", "Display name"], ["email", "Email"], ["phoneNumber", "Phone"]] as const).map(([f, l]) => (
-              <div key={f} className="space-y-1">
-                <Label>{l}</Label>
-                <Input value={form[f]} onChange={(e) => setForm({ ...form, [f]: e.target.value })} />
-              </div>
-            ))}
-          </div>
-        )}
-
-        {step !== "menu" && (
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setStep("menu")}>Back</Button>
-            <Button disabled={changeRole.isPending || edit.isPending} onClick={() => (step === "role" ? changeRole.mutate() : edit.mutate())}>
-              Save changes
-            </Button>
-          </DialogFooter>
+          <>
+            <div className="space-y-2">
+              <Label>New role</Label>
+              <Select value={roleCode} onValueChange={setRoleCode}>
+                <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
+                <SelectContent>{ROLES.map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setStep("menu")}>Back</Button>
+              <Button disabled={busy || !roleCode} onClick={saveRole}>Save role</Button>
+            </DialogFooter>
+          </>
         )}
       </DialogContent>
     </Dialog>

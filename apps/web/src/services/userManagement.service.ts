@@ -62,6 +62,30 @@ export interface UserManagementOverview {
   shift: { closeStart: string; closeEnd: string; reopenAt: string; updatedAt: string; updatedBy: string | null };
 }
 
+export interface OnlineUser {
+  id: string;
+  displayName: string;
+  email: string;
+  phoneNumber: string | null;
+  department: string;
+  role: string | null;
+  lastSeenAt: string | null;
+  isOnline: boolean;
+}
+
+export interface OnlineOverview {
+  kpis: {
+    total: number;
+    registered: number;
+    online: number;
+    active: number;
+    never: number;
+    newUsers: number;
+    mostActiveToday: { name: string; logins: number } | null;
+  };
+  users: OnlineUser[];
+}
+
 export const userManagementService = {
   async getOverview() {
     const response = await apiFetch<{ data: UserManagementOverview }>("/api/v1/users");
@@ -112,6 +136,16 @@ export const userManagementService = {
 
   async checkoutAll() {
     return apiFetch<{ data: { loggedOut: number } }>("/api/v1/users/checkout-all", { method: "POST" });
+  },
+
+  async getOnlineUsers(period: string) {
+    return (await apiFetch<{ data: OnlineOverview }>(`/api/v1/dashboard/online-users?period=${period}`)).data;
+  },
+  async changeRole(userId: string, roleCode: string) {
+    return apiFetch(`/api/v1/users/${userId}/role`, { method: "PATCH", body: JSON.stringify({ roleCode }) });
+  },
+  async impersonate(userId: string) {
+    return apiFetch(`/api/v1/users/${userId}/impersonate`, { method: "POST" });
   },
 
   identityDocumentUrl(userId: string, side: "front" | "back") {

@@ -18,7 +18,7 @@ import { ModernTradeSalesPage } from "./pages/admin/ModernTradeSalesPage";
 import { ModernTradeTSMPage } from "./pages/admin/ModernTradeTSMPage";
 import { HorecaDashboardPage } from "./pages/admin/HorecaDashboardPage";
 import { OrderAnalyticsPage } from "./pages/admin/OrderAnalyticsPage";
-import { OnlineUsersPage } from "./pages/admin/OnlineUsersPage";
+import OnlineUsersPage from "./pages/admin/OnlineUsersPage";
 import { OrganizationStructurePage } from "./pages/admin/OrganizationStructure";
 import { OutletsPage } from "./pages/admin/OutletsPage";
 import  PaymentMethods  from "./pages/admin/PaymentMethods";
