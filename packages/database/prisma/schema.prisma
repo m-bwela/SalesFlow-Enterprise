@@ -119,6 +119,9 @@ model User {
   emailVerifiedAt     DateTime?
   createdAt           DateTime   @default(now())
   updatedAt           DateTime   @updatedAt
+  lastSeenAt          DateTime?
+  lastLoginAt         DateTime?
+  impersonatedSessions   Session[]        @relation("SessionImpersonator")
 
   memberships          Membership[]
   sessions             Session[]
@@ -135,6 +138,7 @@ model User {
   @@index([status])
   @@index([departmentId])
   @@index([lockedUntil])
+  @@index([lastSeenAt])
   @@map("users")
 }
 
@@ -148,6 +152,8 @@ model Session {
   revokedAt  DateTime?
   ipAddress  String?
   userAgent  String?
+  impersonatedById String?    @db.Uuid
+  impersonatedBy   User?   @relation("SessionImpersonator", fields: [impersonatedById], references: [id], onDelete: SetNull)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

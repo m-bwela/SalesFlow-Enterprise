@@ -31,6 +31,7 @@ export const authenticate: RequestHandler = async (req, res, next) => {
                 expiresAt: true,
                 revokedAt: true,
                 lastSeenAt: true,
+                impersonatedById: true,
                 user: {
                     select: {
                         id: true,
@@ -81,6 +82,46 @@ export const authenticate: RequestHandler = async (req, res, next) => {
 
         res.locals.user = user;
         res.locals.session = authSession;
+        res.locals.impersonatedById = session.impersonatedById;
+
+        if (session.impersonatedById) {
+    const path = req.originalUrl.split("?")[0];
+    const isWrite = !["GET", "HEAD", "OPTIONS"].includes(req.method);
+
+    // Things an admin should never do in someone else's name: credentials, identity, nested impersonation
+    const BLOCKED = /\/(auth\/(change-password|reset-password|logout-all)|me\/(email|password)|users\/[^/]+\/(impersonate|role))$/;
+    if (isWrite && BLOCKED.test(path)) {
+        res.status(403).json({
+            error: {
+                code: "IMPERSONATION_BLOCKED",
+                message: "This action can't be done while acting as another user. Exit the session first.",
+                requestId: res.locals.requestId,
+            },
+        });
+        return;
+    }
+
+    // Record every write against the real admin, not the user being acted as
+    if (isWrite) {
+        const adminId = session.impersonatedById;
+        const targetId = session.userId;
+        res.on("finish", () => {
+            prisma.auditLog
+                .create({
+                    data: {
+                        organizationId: res.locals.membership?.organizationId ?? null,
+                        actorId: adminId,
+                        action: "IMPERSONATED_REQUEST",
+                        resourceType: "User",
+                        resourceId: targetId,
+                        requestId: res.locals.requestId,
+                        metadata: { method: req.method, path, status: res.statusCode },
+                    },
+                })
+                .catch(() => {});
+        });
+    }
+}
 
         next(); // Proceed to the next middleware or route handler
     } catch (error) {

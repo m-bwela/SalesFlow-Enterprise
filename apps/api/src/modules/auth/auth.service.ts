@@ -83,7 +83,7 @@ export class AuthService {
         }
 
         const session = await sessionService.create(user.id);
-        await prisma.user.update({ where: { id: user.id }, data: { lockedUntil: null } });
+        await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date(), lastSeenAt: new Date(), lockedUntil: null } });
         await recordLoginAttempt(email, user.id, true, undefined);
 
         return {

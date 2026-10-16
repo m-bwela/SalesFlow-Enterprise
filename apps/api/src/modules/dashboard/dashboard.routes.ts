@@ -6,6 +6,7 @@ import { getAdminDashboard, getAsrDashboard, getDistributorDashboard, getOutletD
 import { getModernTradeDashboard, getHorecaDashboard } from "./modern-trade.service.js";
 import { getMtTsmDashboard, reviewInvoice } from "./mt-tsm.service.js";
 import { getOrderAnalyticsOverview, getAgentPerformanceForDay } from "./order-analytics.service.js";
+import { getOnlineUsersOverview } from "./online-users.service.js";
 
 import { z } from "zod";
 
@@ -85,6 +86,10 @@ const orderAnalyticsFilterSchema = z.object({
 
 const agentPerformanceFilterSchema = z.object({
     date: dateStringSchema,
+});
+
+const onlineUsersFilterSchema = z.object({
+    period: z.enum(["LIVE", "1H", "3H", "6H", "1D", "1W", "2W", "1M", "3M", "6M", "YTD", "1Y"]).default("LIVE"),
 });
 
 router.get(
@@ -299,6 +304,28 @@ router.get(
             return res.json({ data: dashboard });
         } catch (error) {
             next(error);
+        }
+    },
+);
+
+router.get(
+    "/online-users",
+    authenticate,
+    requirePermission("dashboard.view"),
+    async (req, res, next) => {
+        try {
+            const membership = res.locals.membership;
+            if (!membership) {
+                return res.status(403).json({
+                    error: { code: "FORBIDDEN", message: "No active organization membership found." },
+                });
+            }
+
+            const { period } = onlineUsersFilterSchema.parse(req.query);
+            const data = await getOnlineUsersOverview(membership.organizationId, period);
+            return res.json({ data });
+        } catch (error) {
+            return next(error);
         }
     },
 );
