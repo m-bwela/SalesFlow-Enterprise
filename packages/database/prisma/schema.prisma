@@ -87,6 +87,11 @@ enum PaymentMethodCode {
   CREDIT
 }
 
+enum RouteFrequency {
+  WEEKLY
+  MONTHLY
+}
+
 enum ScopeType {
   GLOBAL
   REGION
@@ -122,6 +127,7 @@ model User {
   lastSeenAt          DateTime?
   lastLoginAt         DateTime?
   impersonatedSessions   Session[]        @relation("SessionImpersonator")
+  routes               Route[]          @relation("RouteAgent")
 
   memberships          Membership[]
   sessions             Session[]
@@ -227,6 +233,7 @@ model Organization {
   departments     Department[]
   asrShiftSetting AsrShiftSetting?
   auditLogs       AuditLog[]
+  routes          Route[]
 
   @@map("organizations")
 }
@@ -310,6 +317,7 @@ model Territory {
   region       Region        @relation(fields: [regionId], references: [id], onDelete: Cascade)
   organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   distributors Distributor[]
+  routes       Route[]
 
   @@unique([regionId, code])
   @@unique([organizationId, shortCode])
@@ -449,11 +457,14 @@ model Outlet {
   depot        Depot?       @relation(fields: [depotId], references: [id], onDelete: Restrict)
   createdBy    User?        @relation("OutletCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   salesOrders  SalesOrder[]
+  routeId         String?    @db.Uuid
+  route           Route?     @relation(fields: [routeId], references: [id], onDelete: SetNull)
 
   @@unique([organizationId, code])
   @@index([organizationId, isActive])
   @@index([distributorId])
   @@index([depotId])
+  @@index([routeId])
   @@map("outlets")
 }
 
@@ -617,4 +628,28 @@ model PaymentMethodAudit {
 
   @@index([organizationId, methodCode, createdAt])
   @@map("payment_method_audits")
+}
+
+model Route {
+  id        String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  territoryId String?   @db.Uuid
+  agentId   String?   @db.Uuid
+  name      String   @db.VarChar(255)
+  code      String
+  frequency RouteFrequency @default(WEEKLY)
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  territory   Territory? @relation(fields: [territoryId], references: [id], onDelete: SetNull)
+  agent       User?      @relation("RouteAgent", fields: [agentId], references: [id], onDelete: SetNull)
+  outlets     Outlet[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, isActive])
+  @@index([territoryId])
+  @@index([agentId])
+  @@map("routes")
 }
