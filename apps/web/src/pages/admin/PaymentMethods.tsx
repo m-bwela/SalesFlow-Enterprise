@@ -36,7 +36,7 @@ type DialogState =
 const fmt = (iso: string) => new Date(iso).toLocaleString();
 const msg = (e: unknown) => (e instanceof Error ? e.message : "Something went wrong");
 
-export default function PaymentMethods() {
+export function PaymentMethods() {
   const [methods, setMethods] = useState<PaymentMethodDTO[]>([]);
   const [audit, setAudit] = useState<AuditDTO[]>([]);
   const [loading, setLoading] = useState(true);

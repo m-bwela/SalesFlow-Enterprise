@@ -3,7 +3,7 @@ import { apiFetch } from "@/lib/api";
 export interface RouteRow {
     id: string; code: string; name: string; frequency: "WEEKLY" | "MONTHLY"; isActive: boolean;
     territoryId: string | null; territory: string | null; agent: string | null;
-    outlets: number; order30d: number; revenue30d: number;
+    outlets: number; orders30d: number; revenue30d: number;
 }
 
 export interface RoutesOverview {

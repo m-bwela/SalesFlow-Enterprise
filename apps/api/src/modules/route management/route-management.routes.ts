@@ -28,42 +28,31 @@ const createSchema = z.object({
 });
 
 router.post("/", authenticate, requirePermission("users.update"), async (req, res, next) => {
-    try {
-        const m = res.locals.membership;
-        if (!m) {
-            return res.status(403).json(forbidden);
-        }
+  try {
+    const m = res.locals.membership;
+    const user = res.locals.user;
+    if (!m || !user) return res.status(403).json(forbidden);
 
-        const d = createSchema.parse(req.body);
-        const route = await prisma.route.create({
-            data: {
-                ...d,
-                organizationId: m.organizationId,
-            },
-        });
-        await prisma.auditLog.create({
-            data: {
-                organizationId: m.organizationId,
-                actorId: res.locals.user.id,
-                action: "ROUTE_CREATED",
-                resourceType: "ROUTE",
-                resourceId: route.id,
-                requestId: res.locals.requestId,
-            },
-        });
+    const d = createSchema.parse(req.body);
+    const route = await prisma.route.create({ data: { ...d, organizationId: m.organizationId } });
 
-        res.status(201).json({ data: route });
-    } catch (e) {
-        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
-            return res.status(409).json({
-                error: {
-                    code: "CONFLICT",
-                    message: "A route with this code already exists."
-                },
-            });
-        }
-        next(e);
-    }
+    await prisma.auditLog.create({
+      data: {
+        organizationId: m.organizationId,
+        actorId: user.id,
+        action: "ROUTE_CREATED",
+        resourceType: "ROUTE",
+        resourceId: route.id,
+        requestId: res.locals.requestId,
+      },
+    });
+
+    res.status(201).json({ data: { id: route.id } });
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002")
+      return res.status(409).json({ error: { code: "CONFLICT", message: "A route with this code already exists." } });
+    next(e);
+  }
 });
 
 export default router;

@@ -117,6 +117,11 @@ export const adminNavigation: NavigationGroup[] = [
                 icon: ClipboardCheck,
             },
             {
+                title: "Routes Management",
+                url: "/admin/routes-management",
+                icon: Workflow,
+            },
+            {
                 title: "Outlets",
                 url: "/admin/outlets",
                 icon: Store,

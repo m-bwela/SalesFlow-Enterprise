@@ -28,7 +28,7 @@ function timeAgo(iso: string | null) {
   return `${Math.floor(mins / 1440)} d ago`;
 }
 
-export default function OnlineUsersPage() {
+export function OnlineUsersPage() {
   const [period, setPeriod] = useState("LIVE");
   const [live, setLive] = useState<OnlineOverview | null>(null);
   const [history, setHistory] = useState<OnlineOverview | null>(null);

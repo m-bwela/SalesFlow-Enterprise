@@ -18,10 +18,10 @@ import { ModernTradeSalesPage } from "./pages/admin/ModernTradeSalesPage";
 import { ModernTradeTSMPage } from "./pages/admin/ModernTradeTSMPage";
 import { HorecaDashboardPage } from "./pages/admin/HorecaDashboardPage";
 import { OrderAnalyticsPage } from "./pages/admin/OrderAnalyticsPage";
-import OnlineUsersPage from "./pages/admin/OnlineUsersPage";
+import { OnlineUsersPage } from "./pages/admin/OnlineUsersPage";
 import { OrganizationStructurePage } from "./pages/admin/OrganizationStructure";
 import { OutletsPage } from "./pages/admin/OutletsPage";
-import  PaymentMethods  from "./pages/admin/PaymentMethods";
+import { PaymentMethods } from "./pages/admin/PaymentMethods";
 import { PerformancePage } from "./pages/admin/PerformancePage";
 import { ProductsPage } from "./pages/admin/ProductsPage";
 import { ReportsPage } from "./pages/admin/ReportsPage";
@@ -38,6 +38,7 @@ import { TerritoriesPage } from "./pages/admin/TerritoriesPage";
 import { DistributorsPage } from "./pages/admin/DistributorsPage";
 import { UserManagementPage } from "./pages/admin/UserManagement";
 import { RolesPage } from "./pages/admin/RolesPage";
+import { RoutesManagementPage } from "./pages/admin/RoutesManagementPage";
 
 function PageShell({ title, children }: { title: string; children?: ReactNode }) {
   return (
@@ -96,6 +97,7 @@ function App() {
             <Route path="routes" element={<RoutesPage />} />
             <Route path="route-plans" element={<RoutePlansPage />} />
             <Route path="outlets" element={<OutletsPage />} />
+            <Route path="routes-management" element={<RoutesManagementPage />} />
             <Route path="organization" element={<OrganizationStructurePage />} />
             <Route path="regions" element={<RegionsPage />} />
             <Route path="payment-methods" element={<PaymentMethods />} />
