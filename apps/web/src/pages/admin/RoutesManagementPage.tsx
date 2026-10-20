@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, RefreshCw, Search } from "lucide-react";
+import {
+  Plus, RefreshCw, Search,
+  Route as RouteIcon, CheckCircle2, PauseCircle, CalendarDays, CalendarRange, UserCheck, UserX, Store,
+  Divide, MapPin, Sparkles, ShoppingCart, Banknote, Package, Users, TrendingUp, Trophy, Medal, Coins,
+  type LucideIcon,
+} from "lucide-react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, } from "recharts";
 import { Card, CardContent, CardHeader, CardDescription, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,7 +19,6 @@ import { AppShell } from "@/components/layout/AppShell";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { cn } from "@/lib/utils";
-import { toast } from "@/components/ui/toast";
 
 const num = (v: number) => Math.round(v).toLocaleString("en-KE");
 const kes = (v: number) => `KES ${num(v)}`;
@@ -52,15 +56,27 @@ export function RoutesManagementPage() {
     }, [data, search, territory]);
 
     const s = data?.stats;
-    const kpis: [string, React.ReactNode][] = s ? [
-        ["Total Routes", num(s.total)], ["Active Routes", num(s.active)], ["Inactive Routes", num(s.inactive)],
-        ["Weekly Routes", num(s.weekly)], ["Monthly Routes", num(s.monthly)], ["Routes with Agent", num(s.withAgent)],
-        ["Unassigned Routes", num(s.unassigned)], ["Outlets on Routes", num(s.outletsOnRoutes)],
-        ["Avg Outlets / Route", s.avgOutletsPerRoute.toFixed(1)], ["Territories Covered", num(s.territoriesCovered)],
-        ["New Routes · Month", num(s.newThisMonth)], ["Orders · 7d", num(s.orders7d)], ["Revenue · 7d", kes(s.revenue7d)],
-        ["Volume · 7d", num(s.volume7d)], ["Active Agents · 7d", num(s.activeAgents7d)],
-        ["Avg Revenue / Route · 30d", kes(s.avgRevenuePerRoute30d)], ["Avg Orders / Route · 30d", s.avgOrdersPerRoute30d.toFixed(1)],
-        ["Best Route · 30d", s.bestRoute30d ?? "—"], ["Best Agent · 30d", s.bestAgent30d ?? "—"], ["Total Revenue · 30d", kes(s.totalRevenue30d)],
+    const kpis: { label: string; value: React.ReactNode; Icon: LucideIcon; tone: string }[] = s ? [
+        { label: "Total Routes", value: num(s.total), Icon: RouteIcon, tone: "bg-primary/10 text-primary" },
+        { label: "Active Routes", value: num(s.active), Icon: CheckCircle2, tone: "bg-emerald-500/10 text-emerald-600" },
+        { label: "Inactive Routes", value: num(s.inactive), Icon: PauseCircle, tone: "bg-muted text-muted-foreground" },
+        { label: "Weekly Routes", value: num(s.weekly), Icon: CalendarDays, tone: "bg-sky-500/10 text-sky-600" },
+        { label: "Monthly Routes", value: num(s.monthly), Icon: CalendarRange, tone: "bg-sky-500/10 text-sky-600" },
+        { label: "Routes with Agent", value: num(s.withAgent), Icon: UserCheck, tone: "bg-emerald-500/10 text-emerald-600" },
+        { label: "Unassigned Routes", value: num(s.unassigned), Icon: UserX, tone: "bg-amber-500/10 text-amber-600" },
+        { label: "Outlets on Routes", value: num(s.outletsOnRoutes), Icon: Store, tone: "bg-primary/10 text-primary" },
+        { label: "Avg Outlets / Route", value: s.avgOutletsPerRoute.toFixed(1), Icon: Divide, tone: "bg-primary/10 text-primary" },
+        { label: "Territories Covered", value: num(s.territoriesCovered), Icon: MapPin, tone: "bg-violet-500/10 text-violet-600" },
+        { label: "New Routes · Month", value: num(s.newThisMonth), Icon: Sparkles, tone: "bg-violet-500/10 text-violet-600" },
+        { label: "Orders · 7d", value: num(s.orders7d), Icon: ShoppingCart, tone: "bg-sky-500/10 text-sky-600" },
+        { label: "Revenue · 7d", value: kes(s.revenue7d), Icon: Banknote, tone: "bg-emerald-500/10 text-emerald-600" },
+        { label: "Volume · 7d", value: num(s.volume7d), Icon: Package, tone: "bg-amber-500/10 text-amber-600" },
+        { label: "Active Agents · 7d", value: num(s.activeAgents7d), Icon: Users, tone: "bg-primary/10 text-primary" },
+        { label: "Avg Revenue / Route · 30d", value: kes(s.avgRevenuePerRoute30d), Icon: TrendingUp, tone: "bg-emerald-500/10 text-emerald-600" },
+        { label: "Avg Orders / Route · 30d", value: s.avgOrdersPerRoute30d.toFixed(1), Icon: ShoppingCart, tone: "bg-sky-500/10 text-sky-600" },
+        { label: "Best Route · 30d", value: s.bestRoute30d ?? "—", Icon: Trophy, tone: "bg-amber-500/10 text-amber-600" },
+        { label: "Best Agent · 30d", value: s.bestAgent30d ?? "—", Icon: Medal, tone: "bg-amber-500/10 text-amber-600" },
+        { label: "Total Revenue · 30d", value: kes(s.totalRevenue30d), Icon: Coins, tone: "bg-emerald-500/10 text-emerald-600" },
     ] : [];
 
     return (
@@ -87,12 +103,19 @@ export function RoutesManagementPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            {s ? kpis.map(([label, value]) => (
-              <Card key={label}><CardContent className="p-4">
-                <div className="truncate text-xl font-semibold" title={String(value)}>{value}</div>
-                <div className="mt-1 text-xs text-muted-foreground">{label}</div>
-              </CardContent></Card>
-            )) : Array.from({ length: 20 }).map((_, i) => (
+            {s ? kpis.map(({ label, value, Icon, tone }) => (
+                <Card key={label}>
+                    <CardContent className="flex items-center gap-3 p-4">
+                    <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", tone)}>
+                        <Icon className="h-5 w-5" aria-hidden="true" />
+                    </span>
+                    <div className="min-w-0">
+                        <div className="truncate text-xl font-semibold leading-tight" title={String(value)}>{value}</div>
+                        <div className="truncate text-xs text-muted-foreground">{label}</div>
+                    </div>
+                    </CardContent>
+                </Card>
+                )) : Array.from({ length: 20 }).map((_, i) => (
               <Card key={i}><CardContent className="p-4">
                 <div className="h-6 w-14 animate-pulse rounded bg-muted" /><div className="mt-2 h-3 w-24 animate-pulse rounded bg-muted" />
               </CardContent></Card>
