@@ -421,6 +421,8 @@ model Product {
   sku            String
   name           String
   category       String?
+  brand          String?
+  packSize       String?
   unitOfMeasure  String   @default("unit")
   unitPrice      Decimal  @db.Decimal(12, 2)
   isActive       Boolean  @default(true)
@@ -431,6 +433,8 @@ model Product {
   orderItems   SalesOrderItem[]
 
   @@unique([organizationId, sku])
+  @@index([organizationId, brand])
+  @@index([organizationId, packSize])
   @@index([organizationId, isActive])
   @@map("products")
 }
