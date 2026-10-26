@@ -122,6 +122,9 @@ const permissions = [
 
     ["payments.view", "View payment methods"],
     ["payments.manage", "Manage payment methods"],
+
+    ["products.view", "View products"],
+    ["products.manage", "Manage products"],
 ];
 
 async function main() {
