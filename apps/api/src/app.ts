@@ -14,6 +14,7 @@ import territoriesRoutes from "./modules/territories/territories.routes.js";
 import paymentMethodsRoutes from "./modules/payment-methods/payment-methods.routes.js";
 import routeManagementRouter from "./modules/route management/route-management.routes.js";
 import productsRoutes from "./modules/product-management/product-management.routes.js";
+import auditLogRouter from "./modules/audit-log/audit-log.routes.js";
 
 export const app = express();
 
@@ -55,5 +56,6 @@ app.use("/api/v1/territories", territoriesRoutes);
 app.use("/api/v1/payment-methods", paymentMethodsRoutes);
 app.use("/api/v1/routes", routeManagementRouter);
 app.use("/api/v1/products", productsRoutes);
+app.use("/api/v1/audit-logs", auditLogRouter)
 app.use(notFound);
 app.use(errorhandler);

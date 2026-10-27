@@ -306,7 +306,7 @@ export const adminNavigation: NavigationGroup[] = [
         items: [
             {
                 title: "Audit Logs",
-                url: "/admin/audit",
+                url: "/admin/audit-logs",
                 icon: History,
             },
         ],

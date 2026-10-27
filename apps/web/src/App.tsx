@@ -39,6 +39,7 @@ import { DistributorsPage } from "./pages/admin/DistributorsPage";
 import { UserManagementPage } from "./pages/admin/UserManagement";
 import { RolesPage } from "./pages/admin/RolesPage";
 import { RoutesManagementPage } from "./pages/admin/RoutesManagementPage";
+import { AuditLogPage } from "./pages/admin/AuditLogPage";
 
 function PageShell({ title, children }: { title: string; children?: ReactNode }) {
   return (
@@ -120,6 +121,7 @@ function App() {
             <Route path="modern-trade/sales" element={<ModernTradeSalesPage />} />
             <Route path="horeca-dashboard" element={<HorecaDashboardPage />} />
             <Route path="order-analytics" element={<OrderAnalyticsPage />} />
+            <Route path="audit-logs" element={<AuditLogPage />} />
           </Route>
 
           <Route path="/rsm" element={<RoleRoute allowedRoles={["RSM"]} />}>
