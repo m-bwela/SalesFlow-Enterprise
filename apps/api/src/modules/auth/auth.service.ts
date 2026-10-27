@@ -71,7 +71,7 @@ export class AuthService {
 
         if (!isPasswordValid) {
             await registerFailedLogin(user.id, email, undefined);
-            throw new AppError("INVALID_CREDENTIALS", 401, "Invalid email or password.");
+            throw new AppError("INVALID_CREDENTIALS", 401, "Password is incorrect. Start with a Capital Letter.");
         }
 
         if(user.status !== "ACTIVE") {
@@ -79,7 +79,7 @@ export class AuthService {
             if (user.status === "PENDING") {
                 throw new AppError("ACCOUNT_PENDING_APPROVAL", 403, "Your account is awaiting admin approval.");
             }
-            throw new AppError("ACCOUNT_UNAVAILABLE", 403, "This account is not available.");
+            throw new AppError("ACCOUNT_UNAVAILABLE", 403, "Account is deactivated. Contact an administrator.");
         }
 
         const session = await sessionService.create(user.id);

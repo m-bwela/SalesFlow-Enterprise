@@ -120,7 +120,7 @@ export function LoginForm({
                   </Field>
 
                   {error ? (
-                    <p className="text-sm text-[#f0b0a6]">{error}</p>
+                    <p className="text-md text-[#f0b0a6] border border-[#f0b0a6]/20 p-2 rounded bg-[#f0b0a6]/10">{error}</p>
                   ) : null}
 
                   <div className="space-y-3 pt-2">
