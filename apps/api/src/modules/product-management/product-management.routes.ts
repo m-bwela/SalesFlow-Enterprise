@@ -89,7 +89,7 @@ router.put("/:id", authenticate, requirePermission("users.update"), async (req, 
         if (!m || !user) {
             return res.status(403).json(forbidden);
         }
-        const  id  = z.string().uuid().parse(req.params);
+        const  id  = z.string().uuid().parse(req.params.id);
         const r = await prisma.product.updateMany({
             where: {
                 id,
