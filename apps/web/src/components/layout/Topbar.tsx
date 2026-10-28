@@ -51,6 +51,7 @@ export function Topbar() {
             type="search"
             placeholder="outlets, coolers, distributors, products, tickets..."
             className="h-9 border-border/70 bg-muted/30 pl-9 text-sm shadow-none focus-visible:ring-0"
+            autoComplete="off"
           />
         </div>
       </div>
