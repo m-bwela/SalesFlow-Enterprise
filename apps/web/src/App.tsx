@@ -100,7 +100,6 @@ function App() {
             <Route path="outlets" element={<OutletsPage />} />
             <Route path="routes-management" element={<RoutesManagementPage />} />
             <Route path="organization" element={<OrganizationStructurePage />} />
-            <Route path="regions" element={<RegionsPage />} />
             <Route path="payment-methods" element={<PaymentMethods />} />
             <Route path="territories" element={<TerritoriesPage />} />
             <Route path="distributors" element={<DistributorsPage />} />
@@ -122,6 +121,7 @@ function App() {
             <Route path="horeca-dashboard" element={<HorecaDashboardPage />} />
             <Route path="order-analytics" element={<OrderAnalyticsPage />} />
             <Route path="audit-logs" element={<AuditLogPage />} />
+            <Route path="regions" element={<RegionsPage />} />
           </Route>
 
           <Route path="/rsm" element={<RoleRoute allowedRoles={["RSM"]} />}>
