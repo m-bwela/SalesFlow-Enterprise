@@ -15,6 +15,7 @@ import paymentMethodsRoutes from "./modules/payment-methods/payment-methods.rout
 import routeManagementRouter from "./modules/route management/route-management.routes.js";
 import productsRoutes from "./modules/product-management/product-management.routes.js";
 import auditLogRouter from "./modules/audit-log/audit-log.routes.js";
+import targetManagementRouter from "./modules/target management/target-management.routes.js";
 import regionManagementRouter from "./modules/regions/regions-management.routes.js";
 
 export const app = express();
@@ -59,5 +60,6 @@ app.use("/api/v1/routes", routeManagementRouter);
 app.use("/api/v1/products", productsRoutes);
 app.use("/api/v1/audit-logs", auditLogRouter);
 app.use("/api/v1/regions", regionManagementRouter);
+app.use("/api/v1/targets", targetManagementRouter);
 app.use(notFound);
 app.use(errorhandler);

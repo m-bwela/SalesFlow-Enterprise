@@ -40,6 +40,7 @@ import { UserManagementPage } from "./pages/admin/UserManagement";
 import { RolesPage } from "./pages/admin/RolesPage";
 import { RoutesManagementPage } from "./pages/admin/RoutesManagementPage";
 import { AuditLogPage } from "./pages/admin/AuditLogPage";
+import { TargetsPage } from "./pages/admin/TargetsPage";
 
 function PageShell({ title, children }: { title: string; children?: ReactNode }) {
   return (
@@ -122,6 +123,7 @@ function App() {
             <Route path="order-analytics" element={<OrderAnalyticsPage />} />
             <Route path="audit-logs" element={<AuditLogPage />} />
             <Route path="regions" element={<RegionsPage />} />
+            <Route path="targets" element={<TargetsPage />} />
           </Route>
 
           <Route path="/rsm" element={<RoleRoute allowedRoles={["RSM"]} />}>

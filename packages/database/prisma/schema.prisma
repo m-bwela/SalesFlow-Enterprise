@@ -100,6 +100,12 @@ enum ScopeType {
   WAREHOUSE
 }
 
+enum TargetLevel {
+  REGION
+  TERRITORY
+  ASR
+}
+
 // ─── Models ──────────────────────────────────────────────────────────────────
 
 model User {
@@ -234,6 +240,7 @@ model Organization {
   asrShiftSetting AsrShiftSetting?
   auditLogs       AuditLog[]
   routes          Route[]
+  targets         Target[]
 
   @@map("organizations")
 }
@@ -656,4 +663,25 @@ model Route {
   @@index([territoryId])
   @@index([agentId])
   @@map("routes")
+}
+
+model Target {
+  id     String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  level          TargetLevel
+  entityId       String   @db.Uuid  // region id, territory id or user id, depending on the level
+  month          DateTime  @db.Date   // always the 1st of the month
+  revenue        Decimal   @default(0) @db.Decimal(14, 2)
+  volume         Decimal   @default(0) @db.Decimal(14, 3)
+  orders         Int       @default(0)
+  newOutlets     Int       @default(0)
+  setById        String?   @db.Uuid
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, level, entityId, month])
+  @@index([organizationId, month])
+  @@map("targets")
 }

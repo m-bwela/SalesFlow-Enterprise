@@ -21,6 +21,7 @@ import {
     Warehouse,
     Workflow,
     CreditCard,
+    Target,
 } from "lucide-react";
 import type { RoleCode } from "../types/auth";
 
@@ -64,6 +65,11 @@ export const adminNavigation: NavigationGroup[] = [
                 title: "Performance",
                 url: "/admin/performance",
                 icon: Gauge,
+            },
+            {
+                title: "Target",
+                url: "/admin/targets",
+                icon: Target,
             },
             {
                 title: "Analytics",
