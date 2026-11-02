@@ -1,6 +1,6 @@
 import { prisma, type Prisma } from "@salesflow/database";
 
-const ONLINE_MS = 2 * 60_000;
+const ONLINE_MS = 5 * 60_000;
 const EAT_OFFSET = 3 * 3600_000;
 const PERIOD_MINUTES: Record<string, number> = {
     LIVE: 1, "1H": 60, "3H": 180, "6H": 360, "1D": 1440, "1W": 10080,

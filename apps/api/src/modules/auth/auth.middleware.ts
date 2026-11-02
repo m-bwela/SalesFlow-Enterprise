@@ -67,10 +67,10 @@ export const authenticate: RequestHandler = async (req, res, next) => {
 
         const user = session.user;
         if (!session.lastSeenAt || now.getTime() - session.lastSeenAt.getTime() >= 60_000) {
-            await prisma.session.update({
-                where: { id: session.id },
-                data: { lastSeenAt: now },
-            });
+             await prisma.$transaction([
+                 prisma.session.update({ where: { id: session.id }, data: { lastSeenAt: now } }),
+                 prisma.user.update({ where: { id: session.userId }, data: { lastSeenAt: now } }),
+            ]);
         }
         const authSession = {
             id: session.id,

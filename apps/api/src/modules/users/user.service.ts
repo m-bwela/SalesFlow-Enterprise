@@ -698,6 +698,10 @@ export async function recordLoginAttempt(email: string, userId: string | null, s
 	await prisma.loginAttempt.create({
 		data: { email: email.trim().toLowerCase(), userId, successful, ipAddress: ipAddress ?? null },
 	});
+	if (successful && userId) {
+		const now = new Date();
+		await prisma.user.update({ where: { id: userId }, data: { lastLoginAt: now, lastSeenAt: now } });
+	}
 }
 
 export async function registerFailedLogin(userId: string, email: string, ipAddress: string | undefined) {
