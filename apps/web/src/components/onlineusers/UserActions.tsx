@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { userManagementService, type OnlineUser } from "@/services/userManagement.service";
+import { LifeBuoy, Unlock, KeyRound, ShieldCheck } from "lucide-react";
+import { LoginHelpPanel } from "./LoginHelpPanel";
 
 export const ROLES = [
   ["ADMIN", "Admin"], ["SUPER_ADMIN", "Super Admin"], ["RSM", "Regional Sales Manager"],
@@ -15,11 +17,12 @@ export const ROLES = [
 ] as const;
 export const roleLabel = (code: string) => ROLES.find(([c]) => c === code)?.[1] ?? code;
 
-type Step = "menu" | "role";
+type Step = "menu" | "role" | "help";
 const cards = [
   { k: "role", label: "Change role", hint: "Reassign permissions", Icon: ArrowRightLeft },
   { k: "edit", label: "Edit", hint: "Update details", Icon: Pencil },
   { k: "login", label: "Login", hint: "View as this user", Icon: LogIn },
+  { k: "help", label: "Login help", hint: "Troubleshoot login issues", Icon: LifeBuoy },
 ] as const;
 
 type Props = {
@@ -60,6 +63,7 @@ export function UserActions({ user, open, onClose, onChanged, onEdit }: Props) {
       return;
     }
     // k === "login"
+    if (k === "help") { setStep("help"); return; }
     if (await run(() => userManagementService.impersonate(user.id), "Opening session…")) {
       window.location.assign("/");
     }
@@ -76,12 +80,12 @@ export function UserActions({ user, open, onClose, onChanged, onEdit }: Props) {
     <Dialog open={open} onOpenChange={(o) => { if (!o) close(); }}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{step === "menu" ? user.displayName : "Change role"}</DialogTitle>
+          <DialogTitle>{step === "menu" ? user.displayName : step === "role" ? "Change role" : "Login help"}</DialogTitle>
           <DialogDescription>{user.role ? roleLabel(user.role) : "No role"} · {user.department}</DialogDescription>
         </DialogHeader>
 
         {step === "menu" && (
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             {cards.map(({ k, label, hint, Icon }) => (
               <button key={k} disabled={busy} onClick={() => pick(k)}
                 className="rounded-lg border p-4 text-center transition hover:border-primary hover:bg-accent focus-visible:outline focus-visible:outline-2 disabled:opacity-50">
@@ -105,6 +109,14 @@ export function UserActions({ user, open, onClose, onChanged, onEdit }: Props) {
             <DialogFooter>
               <Button variant="outline" onClick={() => setStep("menu")}>Back</Button>
               <Button disabled={busy || !roleCode} onClick={saveRole}>Save role</Button>
+            </DialogFooter>
+          </>
+        )}
+        {step === "help" && (
+          <>
+            <LoginHelpPanel userId={user.id} onChanged={onChanged} />
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setStep("menu")}>Back</Button>
             </DialogFooter>
           </>
         )}

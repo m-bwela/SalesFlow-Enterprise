@@ -86,6 +86,18 @@ export interface OnlineOverview {
   users: OnlineUser[];
 }
 
+export interface LoginDiagnostics {
+  status: ManagedUser["status"];
+  locked: boolean;
+  lockedUntil: string | null;
+  hasPassword: boolean;
+  hasActiveRole: boolean;
+  lastLoginAt: string | null;
+  activeSessions: number;
+  failedAttempts: Array<{ createdAt: string; ipAddress: string | null }>;
+  problems: string[];
+}
+
 export const userManagementService = {
   async getOverview() {
     const response = await apiFetch<{ data: UserManagementOverview }>("/api/v1/users");
@@ -146,6 +158,13 @@ export const userManagementService = {
   },
   async impersonate(userId: string) {
     return apiFetch(`/api/v1/users/${userId}/impersonate`, { method: "POST" });
+  },
+
+  async diagnostics(userId: string) {
+    return (await apiFetch<{ data: LoginDiagnostics }>(`/api/v1/users/${userId}/diagnostics`)).data;
+  },
+  async resetPassword(userId: string) {
+    return (await apiFetch<{ data: { temporaryPassword: string } }>(`/api/v1/users/${userId}/reset-password`, { method: "POST" })).data;
   },
 
   identityDocumentUrl(userId: string, side: "front" | "back") {

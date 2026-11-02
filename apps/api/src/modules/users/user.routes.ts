@@ -20,6 +20,8 @@ import {
   updateManagedUser,
   updateAsrShift,
 } from "./user.service.js";
+import { getLoginDiagnostics, resetUserPassword } from "./user.service.js";
+
 
 const router = Router();
 const ID_UPLOAD_LIMIT_BYTES = 10 * 1024 * 1024;
@@ -265,6 +267,30 @@ router.get("/:userId/identity/:side", requirePermission("users.view"), async (re
   } catch (error) {
     return next(error);
   }
+});
+
+router.get("/:id/diagnostics", authenticate, requirePermission("users.update"), async (req, res, next) => {
+	try {
+		const membership = res.locals.membership;
+		if (!membership) return res.status(403).json({ error: { code: "FORBIDDEN", message: "No active organization membership found." } });
+		const raw = req.params.id;
+		const id = z.string().uuid().parse(Array.isArray(raw) ? raw[0] : raw);
+		res.json({ data: await getLoginDiagnostics(id, membership.organizationId) });
+	} catch (error) { next(error); }
+});
+
+router.post("/:id/reset-password", authenticate, requirePermission("users.update"), async (req, res, next) => {
+	try {
+		const membership = res.locals.membership, actor = res.locals.user;
+		if (!membership || !actor) return res.status(403).json({ error: { code: "FORBIDDEN", message: "No active organization membership found." } });
+		const raw = req.params.id;
+		const id = z.string().uuid().parse(Array.isArray(raw) ? raw[0] : raw);
+		const result = await resetUserPassword(id, membership.organizationId);
+		await prisma.auditLog.create({
+			data: { organizationId: membership.organizationId, actorId: actor.id, action: "USER_PASSWORD_RESET", resourceType: "User", resourceId: id, requestId: res.locals.requestId },
+		});
+		res.json({ data: result });
+	} catch (error) { next(error); }
 });
 
 export default router;

@@ -714,3 +714,58 @@ export async function registerFailedLogin(userId: string, email: string, ipAddre
 		await prisma.user.update({ where: { id: userId }, data: { lockedUntil: new Date(now.getTime() + LOGIN_LOCK_WINDOW_MS) } });
 	}
 }
+
+export async function getLoginDiagnostics(userId: string, organizationId: string) {
+	const now = new Date();
+	const user = await prisma.user.findFirst({
+		where: { id: userId, memberships: { some: { organizationId, isActive: true } } },
+		select: {
+			status: true, lockedUntil: true, emailVerifiedAt: true, passwordHash: true, lastLoginAt: true,
+			memberships: { where: { organizationId, isActive: true }, select: { roles: { where: { isActive: true }, select: { id: true } } } },
+		},
+	});
+	if (!user) throw new AppError("USER_NOT_FOUND", 404, "User not found.");
+
+	const [failed, activeSessions] = await Promise.all([
+		prisma.loginAttempt.findMany({
+			where: { userId, successful: false, createdAt: { gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) } },
+			orderBy: { createdAt: "desc" }, take: 10, select: { createdAt: true, ipAddress: true },
+		}),
+		prisma.session.count({ where: { userId, revokedAt: null, expiresAt: { gt: now } } }),
+	]);
+
+	const locked = Boolean(user.lockedUntil && user.lockedUntil > now);
+	const hasActiveRole = user.memberships.some((m) => m.roles.length > 0);
+	const problems = [
+		user.status === "PENDING" && "Account is waiting for approval",
+		user.status !== "ACTIVE" && user.status !== "PENDING" && `Account is ${user.status.toLowerCase()}`,
+		locked && "Account is locked after too many wrong passwords",
+		!user.passwordHash && "No password is set",
+		!hasActiveRole && "User has no active role",
+	].filter((p): p is string => Boolean(p));
+
+	return {
+		status: user.status, locked, lockedUntil: user.lockedUntil?.toISOString() ?? null,
+		hasPassword: Boolean(user.passwordHash), hasActiveRole,
+		lastLoginAt: user.lastLoginAt?.toISOString() ?? null, activeSessions,
+		failedAttempts: failed.map((f) => ({ createdAt: f.createdAt.toISOString(), ipAddress: f.ipAddress })),
+		problems,
+	};
+}
+
+// Sets a temporary password, unlocks the account and signs the user out everywhere.
+// The password is returned once to the admin and is never stored or logged in plain text.
+export async function resetUserPassword(userId: string, organizationId: string) {
+	const user = await prisma.user.findFirst({ where: { id: userId, memberships: { some: { organizationId, isActive: true } } }, select: { id: true } });
+	if (!user) throw new AppError("USER_NOT_FOUND", 404, "User not found.");
+
+	// Starts with a capital letter and is longer than 8 characters, to match your password rule
+	const temporaryPassword = `Sf${randomBytes(6).toString("base64url")}`;
+	const passwordHash = await argon2.hash(temporaryPassword, { type: argon2.argon2id });
+	const now = new Date();
+	await prisma.$transaction([
+		prisma.user.update({ where: { id: userId }, data: { passwordHash, lockedUntil: null } }),
+		prisma.session.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: now, lastSeenAt: now } }),
+	]);
+	return { temporaryPassword };
+}
