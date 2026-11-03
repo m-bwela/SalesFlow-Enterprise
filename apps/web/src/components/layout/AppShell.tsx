@@ -4,6 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SidebarProvider } from "../ui/sidebar";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
+import { ImpersonationBanner } from "../onlineusers/ImpersonationBanner";
 
 interface AppShellProps {
     children: ReactNode;
@@ -23,6 +24,7 @@ export function AppShell({ children }: AppShellProps) {
                 <Sidebar onNavigateStart={() => setIsRouteLoading(true)} />
 
                 <div className="flex min-w-0 flex-1 flex-col">
+                    <ImpersonationBanner />
                     <Topbar />
 
                     <main className="flex-1 p-6">

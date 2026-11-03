@@ -136,7 +136,7 @@ model User {
   routes               Route[]          @relation("RouteAgent")
 
   memberships          Membership[]
-  sessions             Session[]
+  sessions             Session[]         @relation("SessionOwner")
   createdDocuments     Document[]        @relation("DocumentCreatedBy")
   ownedDocuments       Document[]        @relation("DocumentOwner")
   createdSalesOrders   SalesOrder[]      @relation("SalesOrderCreatedBy")
@@ -167,7 +167,7 @@ model Session {
   impersonatedById String?    @db.Uuid
   impersonatedBy   User?   @relation("SessionImpersonator", fields: [impersonatedById], references: [id], onDelete: SetNull)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation("SessionOwner", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([expiresAt])

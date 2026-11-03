@@ -4,6 +4,8 @@ import { prisma } from "@salesflow/database";
 import { SESSION_COOKIE_NAME } from './auth.cookies.js';
 import { hashSessionToken } from "./session.js";
 
+const BLOCKED_WHILE_IMPERSONATING = /\/(auth\/(change-password|reset-password)|users\/[^/]+\/(reset-password|role)|impersonation\/[^/]+\/start)$/;
+
 export const authenticate: RequestHandler = async (req, res, next) => {
     try {
         const token = req.cookies?.[SESSION_COOKIE_NAME];
@@ -66,10 +68,20 @@ export const authenticate: RequestHandler = async (req, res, next) => {
         }
 
         const user = session.user;
+        const impersonatedById = session.impersonatedById ?? null;
+
         if (!session.lastSeenAt || now.getTime() - session.lastSeenAt.getTime() >= 60_000) {
              await prisma.$transaction([
                  prisma.session.update({ where: { id: session.id }, data: { lastSeenAt: now } }),
-                 prisma.user.update({ where: { id: session.userId }, data: { lastSeenAt: now } }),
+                 //prisma.user.update({ where: { id: session.userId }, data: { lastSeenAt: now } }),
+                 ...(impersonatedById ? [] : [prisma.user.update({
+                    where: {
+                        id: session.userId,
+                    },
+                    data: {
+                        lastSeenAt: now,
+                    }
+                 })]),
             ]);
         }
         const authSession = {
@@ -82,48 +94,47 @@ export const authenticate: RequestHandler = async (req, res, next) => {
 
         res.locals.user = user;
         res.locals.session = authSession;
-        res.locals.impersonatedById = session.impersonatedById;
+        res.locals.impersonatedById = impersonatedById;
 
-        if (session.impersonatedById) {
-    const path = req.originalUrl.split("?")[0];
-    const isWrite = !["GET", "HEAD", "OPTIONS"].includes(req.method);
+        if (impersonatedById) {
+            const path = req.originalUrl.split("?")[0];
+            const isWrite = !["GET", "HEAD", "OPTIONS"].includes(req.method);
 
-    // Things an admin should never do in someone else's name: credentials, identity, nested impersonation
-    const BLOCKED = /\/(auth\/(change-password|reset-password|logout-all)|me\/(email|password)|users\/[^/]+\/(impersonate|role))$/;
-    if (isWrite && BLOCKED.test(path)) {
-        res.status(403).json({
-            error: {
-                code: "IMPERSONATION_BLOCKED",
-                message: "This action can't be done while acting as another user. Exit the session first.",
-                requestId: res.locals.requestId,
-            },
-        });
-        return;
-    }
-
-    // Record every write against the real admin, not the user being acted as
-    if (isWrite) {
-        const adminId = session.impersonatedById;
-        const targetId = session.userId;
-        res.on("finish", () => {
-            prisma.auditLog
-                .create({
-                    data: {
-                        organizationId: res.locals.membership?.organizationId ?? null,
-                        actorId: adminId,
-                        action: "IMPERSONATED_REQUEST",
-                        resourceType: "User",
-                        resourceId: targetId,
+            if (isWrite && BLOCKED_WHILE_IMPERSONATING.test(path)) {
+                res.status(403).json({
+                    error: {
+                        code: "IMPERSONATION_BLOCKED",
+                        message: "This action can't be done while acting as another user. Exit the session first.",
                         requestId: res.locals.requestId,
-                        metadata: { method: req.method, path, status: res.statusCode },
                     },
+                });
+                return; // Ensure the request does not proceed further
+            }
+
+            // Record every write against the real admin, never the user being acted as
+            if (isWrite) {
+                res.on("finish", () => {
+                    prisma.auditLog.create({
+                        data: {
+                            organizationId: res.locals.membership?.organizationId ?? null,
+                            actorId: impersonatedById,
+                            action: "IMPERSONATED_REQUEST",
+                            resourceType: "User",
+                            resourceId: session.userId,
+                            requestId: res.locals.requestId,
+                            metadata: {
+                                method: req.method,
+                                path,
+                                status: res.statusCode,
+                            },
+                        },
+                    }).catch(() => undefined);
                 })
-                .catch(() => {});
-        });
-    }
-}
+            }
+        }
 
         next(); // Proceed to the next middleware or route handler
+    
     } catch (error) {
         next(error); // Pass the error to the next error-handling middleware
     }

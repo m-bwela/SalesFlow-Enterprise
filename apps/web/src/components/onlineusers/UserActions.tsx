@@ -30,7 +30,7 @@ type Props = {
   open: boolean;
   onClose: () => void;
   onChanged: () => void;
-  onEdit?: (userId: string) => void; // hook up your existing edit dialog here
+  onEdit?: (userId: string) => void;
 };
 
 export function UserActions({ user, open, onClose, onChanged, onEdit }: Props) {
@@ -58,11 +58,21 @@ export function UserActions({ user, open, onClose, onChanged, onEdit }: Props) {
 
   const pick = async (k: string) => {
     if (k === "role") { setRoleCode(user.role ?? ""); setStep("role"); return; }
+    
     if (k === "edit") {
       if (onEdit) { onEdit(user.id); close(); } else toast.info("Connect your existing edit dialog here");
       return;
     }
-    // k === "login"
+
+    if (k === "login") {
+      if (!window.confirm(`View the app as ${user.displayName}? Changes you make are saved in their name and logged under your account.`)) return;
+      if (await run(() => userManagementService.impersonate(user.id), "Opening session…")) {
+        sessionStorage.setItem("impersonationReturn", window.location.pathname);
+        window.location.assign("/");
+      }
+     return;
+    }
+
     if (k === "help") { setStep("help"); return; }
     if (await run(() => userManagementService.impersonate(user.id), "Opening session…")) {
       window.location.assign("/");

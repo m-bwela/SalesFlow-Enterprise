@@ -156,8 +156,15 @@ export const userManagementService = {
   async changeRole(userId: string, roleCode: string) {
     return apiFetch(`/api/v1/users/${userId}/role`, { method: "PATCH", body: JSON.stringify({ roleCode }) });
   },
+  
   async impersonate(userId: string) {
-    return apiFetch(`/api/v1/users/${userId}/impersonate`, { method: "POST" });
+    return (await apiFetch<{ data: { displayName: string } }>(`/api/v1/impersonation/${userId}/start`, { method: "POST" })).data;
+  },
+  async exitImpersonation() {
+    return (await apiFetch<{ data: { restored: boolean } }>("/api/v1/impersonation/exit", { method: "POST" })).data;
+  },
+  async impersonationStatus() {
+    return (await apiFetch<{ data: { impersonating: boolean; userName?: string; adminName?: string; expiresAt?: string } }>("/api/v1/impersonation/status")).data;
   },
 
   async diagnostics(userId: string) {

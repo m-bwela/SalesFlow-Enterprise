@@ -40,6 +40,22 @@ export class SessionService {
             },
         });
     }
+
+    async createImpersonation(userId: string, adminId: string, durationMs: number) {
+    const token = generateSessionToken();
+    const session = await prisma.session.create({
+        data: {
+            userId,
+            impersonatedById: adminId,
+            tokenHash: hashSessionToken(token),
+            expiresAt: new Date(Date.now() + durationMs),
+            lastSeenAt: new Date(),
+            userAgent: "impersonation",
+        },
+        select: { id: true, expiresAt: true },
+    });
+    return { token, session };
+}
 }
 
 export const sessionService = new SessionService();
