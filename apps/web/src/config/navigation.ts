@@ -57,24 +57,9 @@ export const adminNavigation: NavigationGroup[] = [
         title: "Business Intelligence",
         items: [
             {
-                title: "Sales Dashboard",
-                url: "/admin/sales-dashboard",
-                icon: BarChart3,
-            },
-            {
-                title: "Performance",
-                url: "/admin/performance",
-                icon: Gauge,
-            },
-            {
                 title: "Target",
                 url: "/admin/targets",
                 icon: Target,
-            },
-            {
-                title: "Analytics",
-                url: "/admin/analytics",
-                icon: BarChart3,
             },
             {
                 title: "Reports",
@@ -113,11 +98,6 @@ export const adminNavigation: NavigationGroup[] = [
                 icon: Gauge,
             },
             {
-                title: "Routes",
-                url: "/admin/routes",
-                icon: Workflow,
-            },
-            {
                 title: "Route Plans",
                 url: "/admin/route-plans",
                 icon: ClipboardCheck,
@@ -152,11 +132,6 @@ export const adminNavigation: NavigationGroup[] = [
                 title: "MT TSM Dashboard",
                 url: "/admin/modern-trade/tsm",
                 icon: Users,
-            },
-            {
-                title: "MT Outlets",
-                url: "/admin/modern-trade/outlets",
-                icon: Store,
             },
             {
                 title: "MT Sales",
@@ -214,11 +189,6 @@ export const adminNavigation: NavigationGroup[] = [
                 title: "Role Management",
                 url: "/admin/roles",
                 icon: ShieldCheck,
-            },
-            {
-                title: "ASR Management",
-                url: "/admin/asr-management",
-                icon: UserCog,
             },
             {
                 title: "Online Users",
